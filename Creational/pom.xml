@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.design.patterns</groupId>
+		<artifactId>Design_Patterns</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+	<artifactId>Creational</artifactId>
+	<packaging>pom</packaging>
+	<name>Creational</name>
+	<modules>
+		<module>Singletone_Design_Pattern</module>
+		<module>Factory_Design__Pattern</module>
+		<module>Builder_Design_Pattern</module>
+		<module>Abstract_Factory_Design_Pattern</module>
+		<module>Prototype_Design_Pattern</module>
+	</modules>
+</project>

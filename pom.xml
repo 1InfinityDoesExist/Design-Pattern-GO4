@@ -20,11 +20,8 @@
 	</properties>
 
 	<modules>
-		<module>Decorator_Design_Pattern</module>
-		<module>Observer_Design_Pattern</module>
-		<module>Strategy_Design_Pattern</module>
-		<module>Factory_Design__Pattern</module>
-		<module>Singletone_Design_Pattern</module>
-		<module>Builder_Design_Pattern</module>
+		<module>Creational</module>
+		<module>Structural</module>
+		<module>Behavioral</module>
 	</modules>
 </project>
