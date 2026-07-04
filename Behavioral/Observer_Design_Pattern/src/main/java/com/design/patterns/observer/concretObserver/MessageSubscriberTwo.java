@@ -14,7 +14,6 @@ public class MessageSubscriberTwo implements Observer {
 
 	@Override
 	public void update() {
-		// TODO Auto-generated method stub
 		System.out.println(this.observable.getMsg());
 
 	}

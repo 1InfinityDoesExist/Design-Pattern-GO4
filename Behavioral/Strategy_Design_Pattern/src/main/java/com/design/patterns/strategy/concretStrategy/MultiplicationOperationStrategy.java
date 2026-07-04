@@ -6,9 +6,6 @@ public class MultiplicationOperationStrategy implements OperationStrategy {
 
 	@Override
 	public int doOperation(int x, int y) {
-		// TODO Auto-generated method stub
 		return x * y;
-
 	}
-
 }

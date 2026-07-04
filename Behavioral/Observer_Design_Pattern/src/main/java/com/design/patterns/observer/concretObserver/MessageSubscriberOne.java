@@ -15,7 +15,6 @@ public class MessageSubscriberOne implements Observer {
 	@Override
 	public void update() {
 		System.out.println(this.observable.getMsg());
-
 	}
 
 }
