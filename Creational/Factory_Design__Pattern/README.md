@@ -6,6 +6,29 @@ Define an interface for creating an object, but let the *factory* decide which c
 
 This implementation is the **Spring-idiomatic, self-registering** variant: every product is a Spring `@Component`, they are all injected as a `List`, and the factory indexes them into an `EnumMap`. Adding a new shape requires **zero changes** to the factory.
 
+## UML class diagram
+
+```
+            <<interface>> Shape
+            +------------------+
+            | +draw()          |
+            | +getDesignType() |
+            +---------^--------+
+                      | implements
+        +---------+---+-----+----------+
+        |         |         |          |
+    +---+--+  +---+-----+ +-+-------+  |
+    |Circle|  |Rectangle| |Triangle |  |
+    +------+  +---------+ +---------+  |
+                      collected into   |
+        +------------------------------+--+
+        |            ShapeFactory         |
+        +---------------------------------+
+        | - shapeMap : EnumMap<DesignType,Shape>
+        | + getShape(DesignType) : Shape  |
+        +---------------------------------+
+```
+
 ---
 
 ## The players

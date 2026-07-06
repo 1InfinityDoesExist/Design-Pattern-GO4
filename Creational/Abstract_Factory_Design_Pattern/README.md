@@ -6,6 +6,29 @@ Provide an interface for creating **families of related objects** without specif
 
 Here the families are **HOME** and **OFFICE** furniture. If you pick the office factory, every product it hands back (chair *and* table) is office furniture. You physically cannot end up with a home chair next to an office table. That guarantee — *consistency across a product family* — is the whole reason Abstract Factory exists and is what separates it from a plain Factory Method.
 
+## UML class diagram
+
+```
+ <<interface>> IChair      <<interface>> ITable
+ +sitOn()                  +use()
+   ^         ^               ^          ^
+   |         |               |          |
+HomeChair OfficeChair    HomeTable OfficeTable
+   \_________|_______________|_________/
+             produced as MATCHED FAMILIES by
+        <<interface>> IFurnitureFactory
+        +createChair() : IChair   (no args!)
+        +createTable() : ITable
+             ^                    ^
+             |                    |
+  HomeFurnitureFactory   OfficeFurnitureFactory
+             ^                    ^
+             +----- registered ---+
+        FurnitureFactoryProvider
+        - factoryMap : EnumMap<FurnitureType,IFurnitureFactory>
+        + getFactory(FurnitureType)
+```
+
 ---
 
 ## The players

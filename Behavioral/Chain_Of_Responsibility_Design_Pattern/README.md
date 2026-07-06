@@ -6,6 +6,20 @@ Decouple the **sender** of a request from its **receiver** by giving more than o
 
 Here the chain models a **support desk**: a request with a `Priority` is passed to Level 1 support, which either handles it or escalates to Level 2, which escalates to Level 3.
 
+## UML class diagram
+
+```
+  <<interface>> ISupportHandler
+  +handleRequest(Request)
+  +setNextHandler(ISupportHandler)
+        ^            ^            ^
+        |            |            |
+ FirstLevel --> SecondLevel --> ThirdLevel   (terminal)
+  BASIC?           INTERMEDIATE?   CRITICAL? else "cannot be handled"
+    | no: forward     | no: forward
+ client -> firstLevel.handleRequest(request)  (head only)
+```
+
 ---
 
 ## The players

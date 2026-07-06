@@ -6,6 +6,22 @@ Define a **one-to-many** dependency between objects so that when one object (the
 
 Here the subject is a **`MessagePublisher`** that holds a message, and the observers are **subscribers** that want to react whenever the message changes.
 
+## UML class diagram
+
+```
+ <<interface>> Observable            <<interface>> Observer
+ | +attach(Observer)     |           | +update() |
+ | +detach(Observer)     |               ^      ^
+ | +notifyUpdate()       |               |      |
+ +-----------^-----------+     MessageSubscriberOne  MessageSubscriberTwo
+             |                  (attach(this) in ctor; pulls getMsg())
+     MessagePublisher
+     | -observers : List<Observer>
+     | -msg : String
+     | +setMsg / +getMsg
+     +--> notifyUpdate() -> for each observer.update()
+```
+
 ---
 
 ## The players

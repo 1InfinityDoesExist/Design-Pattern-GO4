@@ -6,6 +6,24 @@ Create new objects by **copying an existing instance** (the *prototype*) instead
 
 This implementation uses Java's `Cloneable` marker interface and a self-declared `clone()` method on each product.
 
+## UML class diagram
+
+```
+      <<interface>> Shape (extends Cloneable)
+      +--------------------+
+      | +clone() : Shape   |
+      +----------^---------+
+                 | implements
+           +-----+------+
+           |   Circle   |
+           +------------+
+           | -radius    |
+           | -color     |
+           | +clone() --+--> returns new Circle(radius,color)
+           +------------+
+ client -> original.clone() -> independent copy
+```
+
 ---
 
 ## The players

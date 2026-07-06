@@ -6,6 +6,24 @@ Capture an object's internal state so it can be **saved and later restored** —
 
 Here the object is a **`Document`** you keep writing to; each snapshot is a **`DocumentMemento`**; and a **`History`** keeps the snapshots so you can restore an earlier version.
 
+## UML class diagram
+
+```
++---------------+   createMemento()  +------------------+
+|   Document    |------------------->| DocumentMemento  |
+|  (originator) |                    |    (memento)     |
+| -content      |<-------------------| -content {frozen}|
+| +write(text)  |  restoreFromMemento| +getSavedContent |
++---------------+                    +---------^--------+
+                                               | stores
+                                     +---------+--------+
+                                     |     History      |
+                                     |   (caretaker)    |
+                                     | -mementos : List |
+                                     | +addMemento/get  |
+                                     +------------------+
+```
+
 ---
 
 ## The three roles (this pattern is defined by them)

@@ -6,6 +6,20 @@ Given a simple "language" (a grammar), define a **class per grammar rule** and a
 
 Here the little language is **integer arithmetic with `+` and `-`**. A string like `"5 + 3 - 2"` is turned into a tree of expression objects and evaluated to `6`.
 
+## UML class diagram
+
+```
+      <<interface>> IExpression
+      | +interpret() : int |
+        ^        ^        ^
+        |        |        |
+ NumberExpression AddExpression SubstractExpression
+ (terminal/leaf)  | left,right | | left,right |
+                  +--> left.interpret() + right.interpret()
+ Context.parseExpression("5 + 3 - 2")
+   -> Substract( Add(Num 5, Num 3), Num 2 ) -> interpret() = 6
+```
+
 ---
 
 ## The players

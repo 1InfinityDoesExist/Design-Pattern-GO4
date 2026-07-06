@@ -6,6 +6,22 @@ Guarantee that a class has **exactly one instance** for the whole lifetime of th
 
 This implementation is the **thread-safe, lazily-initialized** variant, built with the *double-checked locking* idiom over a private `volatile` field and a private mutex object.
 
+## UML class diagram
+
+```
++-----------------------------------------+
+|            SingletonPattern             |
++-----------------------------------------+
+| - instance : SingletonPattern  {static,volatile}
+| - mutex    : Object            {static,final}
++-----------------------------------------+
+| - SingletonPattern()            <<private ctor>>
+| + getInstance() : SingletonPattern {static}
+| + msg() : void                          |
++-----------------------------------------+
+ client --> SingletonPattern.getInstance() --> the ONE shared instance
+```
+
 ---
 
 ## The code, line by line

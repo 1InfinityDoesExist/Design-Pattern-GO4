@@ -6,6 +6,22 @@ Define the **skeleton of an algorithm** in a base class, but let subclasses fill
 
 Here the algorithm is **making a hot beverage**: boil water → brew → pour into cup → add condiments. The *order* is fixed for every beverage, but *brewing* and *condiments* differ between coffee and tea.
 
+## UML class diagram
+
+```
+        <<abstract>> BeverageMaker
+        +--------------------------------+
+        | +makeBeverage() {final}  <-- TEMPLATE: fixed order
+        |    boilWater()  (concrete)     |
+        |    brew()       (abstract)     |
+        |    pourInCup()  (concrete)     |
+        |    addCondiments() (abstract)  |
+        +--------^-------------^---------+
+                 |             |
+           CoffeeMaker      TeaMaker
+           drip + sugar/milk  steep + lemon
+```
+
 ---
 
 ## The players

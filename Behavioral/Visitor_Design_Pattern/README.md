@@ -6,6 +6,20 @@ Separate an **operation** from the **object structure** it works on, so you can 
 
 Here the object structure is a set of **employee types** (full-time, contract, intern), and the operations are things you might *do* to an employee — compute a **tax report** or a **performance report**. Adding a brand-new operation (say, a bonus calculator) means writing one new visitor class and touching **none** of the employee classes.
 
+## UML class diagram
+
+```
+ <<interface>> IEmployeeElement        <<interface>> IEmployeeVisitors
+ | +accept(IEmployeeVisitors) |        | +visit(InternEmployee)     |
+     ^         ^         ^             | +visit(FullTimeEmployee)   |
+     |         |         |             | +visit(ContractEmployee)   |
+ FullTime  Contract   Intern               ^                ^
+ Employee  Employee   Employee             |                |
+     |          |         |          TaxVisitor   PerformanceReportVisitor
+     +---- accept(v){ v.visit(this); } ----+
+     DOUBLE DISPATCH: element type + visitor type pick the method
+```
+
 ---
 
 ## The players

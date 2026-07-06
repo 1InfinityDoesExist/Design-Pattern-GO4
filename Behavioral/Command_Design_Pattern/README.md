@@ -6,6 +6,25 @@ Turn a **request into an object**. Instead of calling a method directly, you wra
 
 Here the requests are **remote-control actions** (turn on, turn off, adjust volume, change channel), the things being controlled are **devices** (a `TV`, a `Stereo`), and the **`RemoteControl`** presses a button without knowing anything about the device behind it.
 
+## UML class diagram
+
+```
+ <<interface>> Command          <<interface>> Device
+ | +execute() |                 | +turnOn() +turnOff() |
+    ^   ^   ^   ^                   ^            ^
+    |   |   |   |                   |            |
+TurnOn TurnOff AdjustVolume ChangeChannel      TV        Stereo
+ (Device) (Device) (Stereo)   (TV)         +changeChannel +adjustVolume
+    \      |        |        /
+     bound receiver + action
+        +----------------+
+        | RemoteControl  |  (invoker)
+        | -command       |
+        | +setCommand()  |
+        | +pressButton() |--> command.execute() --> receiver method
+        +----------------+
+```
+
 ---
 
 ## The four roles (this pattern is defined by them)

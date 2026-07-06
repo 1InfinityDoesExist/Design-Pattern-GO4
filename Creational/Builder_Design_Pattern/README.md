@@ -6,6 +6,22 @@ Separate the **construction** of a complex object from its representation, so th
 
 This implementation is the classic **static nested builder** form: the product (`Customer`) has a private constructor, and a nested `CustomerBuilder` is the only thing allowed to create it.
 
+## UML class diagram
+
+```
++---------------------------+        +------------------------------+
+|         Customer          |        |   Customer.CustomerBuilder   |
++---------------------------+ builds +------------------------------+
+| - name  : String          |<-------| - name  : String             |
+| - email : String          |        | - email : String             |
++---------------------------+        +------------------------------+
+| - Customer(builder) <<private>>    | + name(String)  : Builder    |
+| + getName()               |        | + email(String) : Builder    |
+| + getEmail()              |        | + build() : Customer         |
++---------------------------+        +------------------------------+
+ client -> new CustomerBuilder().name(..).email(..).build()
+```
+
 ---
 
 ## The code, line by line

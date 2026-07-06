@@ -6,6 +6,26 @@ Let an object **change its behavior when its internal state changes**, so it app
 
 Here the object is a **traffic light**. It behaves differently depending on whether it's red, green, or yellow — and each colour knows what colour follows it: red → green → yellow → red.
 
+## UML class diagram
+
+```
+ <<interface>> ITrafficLightState
+ | +handleRequest(TrafficLightContext) |
+     ^            ^             ^
+     |            |             |
+ RedLightState GreenLightState YellowLightState
+   "stop"        "go"           "slow down"
+     |            |             |
+     +--- each sets context.setState(NEXT) ---+
+          RED -> GREEN -> YELLOW -> RED
+ +----------------------+
+ | TrafficLightContext  |
+ | -state               |
+ | +setState(state)     |
+ | +request() ----------+--> state.handleRequest(this)
+ +----------------------+
+```
+
 ---
 
 ## The players
