@@ -1,20 +1,14 @@
 package com.design.patterns.flyweight.contract.concret;
 
-import org.springframework.stereotype.Component;
-
 import com.design.patterns.flyweight.contract.Icon;
-import com.design.patterns.flyweight.contract.enums.IConEmums;
 
-@Component
 public class FolderIcon implements Icon {
 
-	@Override
-	public void display() {
-		System.out.println("----Displaying FolderIcon-----");
-	}
+	// intrinsic state: shared by every placement of a folder icon
+	private final String color = "RED";
 
 	@Override
-	public IConEmums getIConENEmums() {
-		return IConEmums.RED;
+	public void display(int x, int y) {
+		System.out.println("----Drawing " + color + " FolderIcon at (" + x + "," + y + ")");
 	}
 }

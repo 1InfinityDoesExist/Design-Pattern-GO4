@@ -3,14 +3,14 @@ package com.design.patterns.bridge.contract.concrets;
 import com.design.patterns.bridge.contract.Color;
 import com.design.patterns.bridge.contract.Shape;
 
-public class Triangle extends Shape {
+public class Circle extends Shape {
 
-	public Triangle(Color color) {
+	public Circle(Color color) {
 		super(color);
 	}
 
 	@Override
 	public String draw() {
-		return "Triangle shape with color : " + color.fill();
+		return "Circle shape with color : " + color.fill();
 	}
 }

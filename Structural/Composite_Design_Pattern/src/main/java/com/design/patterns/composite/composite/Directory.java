@@ -7,17 +7,24 @@ import com.design.patterns.composite.component.FileSystemComponent;
 
 public class Directory implements FileSystemComponent {
 
-	private String directoryName;
-	List<FileSystemComponent> fileSystemComponents = new ArrayList<>();
+	private final String directoryName;
+	private final List<FileSystemComponent> children = new ArrayList<>();
 
-	public Directory(String directoryName, List<FileSystemComponent> fileSystemComponents) {
+	public Directory(String directoryName) {
 		this.directoryName = directoryName;
-		this.fileSystemComponents = fileSystemComponents;
+	}
+
+	public void add(FileSystemComponent component) {
+		children.add(component);
+	}
+
+	public void remove(FileSystemComponent component) {
+		children.remove(component);
 	}
 
 	@Override
 	public void display() {
 		System.out.println("Directory : " + this.directoryName);
-		fileSystemComponents.stream().forEach(FileSystemComponent::display);
+		children.forEach(FileSystemComponent::display);
 	}
 }

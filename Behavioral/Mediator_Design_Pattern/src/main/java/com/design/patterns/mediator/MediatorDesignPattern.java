@@ -12,11 +12,11 @@ public class MediatorDesignPattern {
 
 		IAirTrafficControlTower controlTower = new AirportControlTower();
 
-		IAirplane airplane1 = new CommercialAirplane(controlTower);
-		IAirplane airplane2 = new CommercialAirplane(controlTower);
+		IAirplane flight101 = new CommercialAirplane("Flight-101", controlTower);
+		IAirplane flight202 = new CommercialAirplane("Flight-202", controlTower);
 
-		airplane1.requestTakeOff();
-		airplane2.requestLanding();
-
+		// airplanes never talk to each other directly — the tower coordinates
+		flight101.requestTakeoff();
+		flight202.requestLanding();
 	}
 }

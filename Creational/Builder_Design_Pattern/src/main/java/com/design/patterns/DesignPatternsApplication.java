@@ -13,8 +13,7 @@ public class DesignPatternsApplication {
 
 		Customer customer = new Customer.CustomerBuilder().name("Avinash Patel").email("infinityDoesExist@gmail.com")
 				.build();
-		System.out.println(customer.getEmail());
-		System.out.println(customer.getName());
+		System.out.println(customer);
 
 	}
 

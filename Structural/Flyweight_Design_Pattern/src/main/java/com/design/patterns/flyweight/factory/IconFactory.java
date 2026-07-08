@@ -1,26 +1,38 @@
 package com.design.patterns.flyweight.factory;
 
 import java.util.EnumMap;
-import java.util.List;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Component;
+import java.util.Map;
 
 import com.design.patterns.flyweight.contract.Icon;
-import com.design.patterns.flyweight.contract.enums.IConEmums;
+import com.design.patterns.flyweight.contract.concret.FileIcon;
+import com.design.patterns.flyweight.contract.concret.FolderIcon;
+import com.design.patterns.flyweight.contract.enums.IconType;
 
-@Component
 public class IconFactory {
 
-	private final EnumMap<IConEmums, Icon> iconInstances;
+	private final Map<IconType, Icon> pool = new EnumMap<>(IconType.class);
 
-	public IconFactory(List<? extends Icon> icons) {
-		this.iconInstances = (icons == null ? List.<Icon>of() : icons).stream().collect(Collectors
-				.toMap(Icon::getIConENEmums, Function.identity(), (a, b) -> b, () -> new EnumMap<>(IConEmums.class)));
+	/**
+	 * Lazily creates one flyweight per type on first request; every later
+	 * request for the same type returns the same shared instance.
+	 */
+	public Icon getIcon(IconType type) {
+		return pool.computeIfAbsent(type, IconFactory::create);
 	}
 
-	public Icon getIcon(IConEmums icon) {
-		return iconInstances.get(icon);
+	private static Icon create(IconType type) {
+		System.out.println("(pool miss) creating flyweight for " + type);
+		switch (type) {
+		case FILE:
+			return new FileIcon();
+		case FOLDER:
+			return new FolderIcon();
+		default:
+			throw new IllegalArgumentException("No flyweight registered for " + type);
+		}
+	}
+
+	public int poolSize() {
+		return pool.size();
 	}
 }

@@ -7,15 +7,14 @@ public class MessageSubscriberTwo implements Observer {
 
 	private MessagePublisher observable;
 
-	public MessageSubscriberTwo(MessagePublisher _obserObservable) {
-		this.observable = _obserObservable;
+	public MessageSubscriberTwo(MessagePublisher observable) {
+		this.observable = observable;
 		this.observable.attach(this);
 	}
 
 	@Override
 	public void update() {
-		System.out.println(this.observable.getMsg());
-
+		System.out.println("SubscriberTwo received: " + this.observable.getMsg());
 	}
 
 }

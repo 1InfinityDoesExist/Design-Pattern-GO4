@@ -4,23 +4,17 @@ import com.design.patterns.component.Beverage;
 import com.design.patterns.decorator.BeverageDecorator;
 
 public class SugarDecorator extends BeverageDecorator {
+
 	public SugarDecorator(Beverage beverage) {
 		super(beverage);
 	}
 
-	public void decorateBeverage() {
-		super.decorateBeverage();
-		decorateSugar();
-	}
-
-	public void decorateSugar() {
-		System.out.println("Added Sugar to:" + beverage.getName());
-	}
-
+	@Override
 	public int getIncrementPrice() {
 		return 5;
 	}
 
+	@Override
 	public String getDecoratedName() {
 		return "Sugar";
 	}

@@ -8,10 +8,16 @@ public class PrototypeDesignPattern {
 		System.out.println("Prototype Design Pattern");
 
 		Circle originalCircle = new Circle(10, "Black");
-
 		Circle copyCircle = (Circle) originalCircle.clone();
 
-		System.out.println(originalCircle);
-		System.out.println(copyCircle);
+		System.out.println("Original : " + originalCircle);
+		System.out.println("Clone    : " + copyCircle);
+		System.out.println("Distinct objects: " + (originalCircle != copyCircle));
+
+		// mutating the clone must not touch the prototype
+		copyCircle.setColor("Red");
+		System.out.println("After recoloring the clone:");
+		System.out.println("Original : " + originalCircle);
+		System.out.println("Clone    : " + copyCircle);
 	}
 }

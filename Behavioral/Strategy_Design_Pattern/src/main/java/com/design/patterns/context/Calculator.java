@@ -6,8 +6,13 @@ public class Calculator {
 
 	private OperationStrategy operationStrategy;
 
-	public Calculator(OperationStrategy _operationStrategy) {
-		this.operationStrategy = _operationStrategy;
+	public Calculator(OperationStrategy operationStrategy) {
+		this.operationStrategy = operationStrategy;
+	}
+
+	// strategies are interchangeable at runtime on the same context
+	public void setOperationStrategy(OperationStrategy operationStrategy) {
+		this.operationStrategy = operationStrategy;
 	}
 
 	public int calculate(int x, int y) {

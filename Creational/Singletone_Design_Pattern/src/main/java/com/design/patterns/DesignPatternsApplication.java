@@ -10,7 +10,11 @@ public class DesignPatternsApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DesignPatternsApplication.class, args);
-		SingletonPattern.getInstance().msg();
 
+		SingletonPattern first = SingletonPattern.getInstance();
+		SingletonPattern second = SingletonPattern.getInstance();
+
+		first.msg();
+		System.out.println("Both references point to the same instance: " + (first == second));
 	}
 }

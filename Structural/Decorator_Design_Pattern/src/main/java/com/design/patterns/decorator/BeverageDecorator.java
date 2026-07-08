@@ -4,18 +4,29 @@ import com.design.patterns.component.Beverage;
 
 public abstract class BeverageDecorator extends Beverage {
 
-	protected Beverage beverage;
+	protected final Beverage beverage;
 
-	public BeverageDecorator(Beverage _beverage) {
-		this.beverage = _beverage;
-		setName(beverage.getName() + ":" + getDecoratedName());
-		setPrice(beverage.getPrice() + getIncrementPrice());
+	public BeverageDecorator(Beverage beverage) {
+		this.beverage = beverage;
+	}
+
+	// name and price are computed by delegating to the wrapped beverage,
+	// so they stay correct no matter how deep the wrapping goes
+	@Override
+	public String getName() {
+		return beverage.getName() + ":" + getDecoratedName();
+	}
+
+	@Override
+	public int getPrice() {
+		return beverage.getPrice() + getIncrementPrice();
 	}
 
 	@Override
 	public void decorateBeverage() {
-		System.out.println("Cost of " + name + ":" + price);
-
+		beverage.decorateBeverage();
+		System.out.println("Added " + getDecoratedName() + " to " + beverage.getName()
+				+ " -> cost of " + getName() + ":" + getPrice());
 	}
 
 	public abstract int getIncrementPrice();

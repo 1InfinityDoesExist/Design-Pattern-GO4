@@ -2,8 +2,8 @@ package com.design.patterns.builderPattern;
 
 public class Customer {
 
-	private String name;
-	private String email;
+	private final String name;
+	private final String email;
 
 	private Customer(CustomerBuilder customerBuilder) {
 		this.name = customerBuilder.name;
@@ -40,7 +40,7 @@ public class Customer {
 
 	@Override
 	public String toString() {
-		return super.toString();
+		return "Customer{name=" + name + ", email=" + email + "}";
 	}
 
 }

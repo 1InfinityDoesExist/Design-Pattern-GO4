@@ -1,7 +1,5 @@
 package com.design.patterns.composite;
 
-import java.util.List;
-
 import com.design.patterns.composite.component.FileSystemComponent;
 import com.design.patterns.composite.composite.Directory;
 import com.design.patterns.composite.leaf.File;
@@ -11,10 +9,16 @@ public class CompositeDesignPattern {
 	public static void main(String[] args) {
 		System.out.println("Composite Design Pattern");
 
-		FileSystemComponent file1 = new File("Image1.png", 1024);
-		FileSystemComponent file2 = new File("Image2.png", 1024);
+		Directory root = new Directory("root");
+		root.add(new File("Image1.png", 1024));
+		root.add(new File("Image2.png", 1024));
 
-		Directory directory = new Directory("MyDirectory", List.of(file1, file2));
-		directory.display();
+		Directory documents = new Directory("documents");
+		documents.add(new File("resume.pdf", 2048));
+		root.add(documents); // a composite nested inside a composite
+
+		// client works through the Component type — leaf and composite look alike
+		FileSystemComponent fileSystem = root;
+		fileSystem.display();
 	}
 }

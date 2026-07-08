@@ -1,11 +1,11 @@
 package com.design.patterns.flyweight.contract;
 
-import com.design.patterns.flyweight.contract.enums.IConEmums;
-
 public interface Icon {
 
-	IConEmums getIConENEmums();
-
-	void display();
+	/**
+	 * Extrinsic state (x, y) is supplied by the caller on every call; the
+	 * flyweight itself only carries shared, immutable intrinsic state.
+	 */
+	void display(int x, int y);
 
 }

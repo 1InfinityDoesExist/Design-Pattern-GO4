@@ -5,7 +5,7 @@ import com.design.patterns.visitor.elements.concrets.FullTimeEmployee;
 import com.design.patterns.visitor.elements.concrets.InternEmployee;
 import com.design.patterns.visitor.visitors.IEmployeeVisitors;
 
-class PerformanceReportVisitor implements IEmployeeVisitors {
+public class PerformanceReportVisitor implements IEmployeeVisitors {
 
 	@Override
 	public void visit(FullTimeEmployee employee) {

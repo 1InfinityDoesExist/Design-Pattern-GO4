@@ -1,20 +1,14 @@
 package com.design.patterns.flyweight.contract.concret;
 
-import org.springframework.stereotype.Component;
-
 import com.design.patterns.flyweight.contract.Icon;
-import com.design.patterns.flyweight.contract.enums.IConEmums;
 
-@Component
 public class FileIcon implements Icon {
 
-	@Override
-	public void display() {
-		System.out.println("----Displaying File-----");
-	}
+	// intrinsic state: shared by every placement of a file icon
+	private final String color = "BLUE";
 
 	@Override
-	public IConEmums getIConENEmums() {
-		return IConEmums.BLUE;
+	public void display(int x, int y) {
+		System.out.println("----Drawing " + color + " FileIcon at (" + x + "," + y + ")");
 	}
 }

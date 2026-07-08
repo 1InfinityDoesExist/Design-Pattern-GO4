@@ -1,22 +1,25 @@
 package com.design.patterns;
 
+import java.util.List;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ConfigurableApplicationContext;
 
-import com.design.patterns.enums.DesignType;
-import com.design.patterns.factory.ShapeFactory;
-import com.design.patterns.factory.contract.Shape;
+import com.design.patterns.factory.ShapeCreator;
+import com.design.patterns.factory.creators.CircleCreator;
+import com.design.patterns.factory.creators.RectangleCreator;
+import com.design.patterns.factory.creators.TriangleCreator;
 
 @SpringBootApplication
 public class DesignPatternsApplication {
 
 	public static void main(String[] args) {
-		ConfigurableApplicationContext context = SpringApplication.run(DesignPatternsApplication.class, args);
+		SpringApplication.run(DesignPatternsApplication.class, args);
 
-		ShapeFactory shapeFactory = context.getBean(ShapeFactory.class);
-		Shape shape = shapeFactory.getShape(DesignType.TRIANGLE);
-		shape.draw();
+		// the client codes against the Creator abstraction; each concrete
+		// creator's factory method decides the concrete product
+		List<ShapeCreator> creators = List.of(new CircleCreator(), new TriangleCreator(), new RectangleCreator());
+		creators.forEach(ShapeCreator::render);
 	}
 
 }

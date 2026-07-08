@@ -1,11 +1,7 @@
 package com.design.patterns.flyweight;
 
-import java.util.List;
-
 import com.design.patterns.flyweight.contract.Icon;
-import com.design.patterns.flyweight.contract.concret.FileIcon;
-import com.design.patterns.flyweight.contract.concret.FolderIcon;
-import com.design.patterns.flyweight.contract.enums.IConEmums;
+import com.design.patterns.flyweight.contract.enums.IconType;
 import com.design.patterns.flyweight.factory.IconFactory;
 
 public class FlyweightDesignPattern {
@@ -13,9 +9,17 @@ public class FlyweightDesignPattern {
 	public static void main(String[] args) {
 		System.out.println("Flyweight Design Pattern");
 
-		List<Icon> icons = List.of(new FileIcon(), new FolderIcon());
+		IconFactory iconFactory = new IconFactory();
 
-		IconFactory iconFactory = new IconFactory(icons);
-		iconFactory.getIcon(IConEmums.BLUE).display();
+		// many placements (extrinsic state), few shared objects (intrinsic state)
+		Icon file1 = iconFactory.getIcon(IconType.FILE);
+		file1.display(10, 20);
+		Icon file2 = iconFactory.getIcon(IconType.FILE);
+		file2.display(30, 40);
+		iconFactory.getIcon(IconType.FOLDER).display(50, 60);
+		iconFactory.getIcon(IconType.FOLDER).display(70, 80);
+
+		System.out.println("FILE flyweight reused (file1 == file2): " + (file1 == file2));
+		System.out.println("Objects in pool for 4 placements: " + iconFactory.poolSize());
 	}
 }

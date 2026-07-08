@@ -14,6 +14,6 @@ public class File implements FileSystemComponent {
 
 	@Override
 	public void display() {
-		System.out.println("File  :" + name + " with size : " + size);
+		System.out.println("File : " + name + " with size : " + size);
 	}
 }

@@ -5,24 +5,29 @@ import com.design.patterns.mediator.mediator.IAirTrafficControlTower;
 
 public class CommercialAirplane implements IAirplane {
 
-	private IAirTrafficControlTower iAirTrafficControlTower;
+	private final String callSign;
+	private final IAirTrafficControlTower tower;
 
-	public CommercialAirplane(IAirTrafficControlTower iAirTrafficControlTower) {
-		this.iAirTrafficControlTower = iAirTrafficControlTower;
+	public CommercialAirplane(String callSign, IAirTrafficControlTower tower) {
+		this.callSign = callSign;
+		this.tower = tower;
+		tower.register(this);
 	}
 
 	@Override
-	public void requestTakeOff() {
-		iAirTrafficControlTower.requestTakeoff(this);
+	public void requestTakeoff() {
+		System.out.println(callSign + " -> Tower: requesting takeoff.");
+		tower.requestTakeoff(this);
 	}
 
 	@Override
 	public void requestLanding() {
-		iAirTrafficControlTower.requestLanding(this);
+		System.out.println(callSign + " -> Tower: requesting landing.");
+		tower.requestLanding(this);
 	}
 
 	@Override
 	public void notifyAirTrafficControl(String msg) {
-		System.out.println("Commercial Airplane: " + msg);
+		System.out.println("Tower -> " + callSign + ": " + msg);
 	}
 }

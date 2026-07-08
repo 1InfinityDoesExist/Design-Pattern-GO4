@@ -14,31 +14,26 @@ public class MessagePublisher implements Observable {
 
 	@Override
 	public void attach(Observer observer) {
-		// TODO Auto-generated method stub
 		observers.add(observer);
-
 	}
 
 	@Override
 	public void detach(Observer observer) {
-		// TODO Auto-generated method stub
 		observers.remove(observer);
 	}
 
 	@Override
 	public void notifyUpdate() {
-		// TODO Auto-generated method stub
-		observers.stream().forEach(observer -> {
-			observer.update();
-		});
-
+		observers.forEach(Observer::update);
 	}
 
 	public String getMsg() {
 		return msg;
 	}
 
+	// a state change must push the news to every attached observer
 	public void setMsg(String msg) {
 		this.msg = msg;
+		notifyUpdate();
 	}
 }

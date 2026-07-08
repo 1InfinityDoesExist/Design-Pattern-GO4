@@ -14,14 +14,15 @@ public class DesignPatternsApplication {
 		SpringApplication.run(DesignPatternsApplication.class, args);
 
 		MessagePublisher publisher = new MessagePublisher();
-		publisher.setMsg("---I am going to change-----");
 
-		MessageSubscriberOne messageSubscriberOne = new MessageSubscriberOne(publisher);
-		messageSubscriberOne.update();
+		MessageSubscriberOne subscriberOne = new MessageSubscriberOne(publisher);
+		MessageSubscriberTwo subscriberTwo = new MessageSubscriberTwo(publisher);
 
-		publisher.setMsg("-----Am i going to change------");
-		MessageSubscriberTwo messageSubscriberTwo = new MessageSubscriberTwo(publisher);
-		messageSubscriberTwo.update();
+		publisher.setMsg("first message");   // both subscribers are notified
+
+		publisher.detach(subscriberOne);
+
+		publisher.setMsg("second message");  // only SubscriberTwo is notified
 	}
 
 }

@@ -5,18 +5,8 @@ import com.design.patterns.decorator.BeverageDecorator;
 
 public class LemonDecorator extends BeverageDecorator {
 
-	public LemonDecorator(Beverage _beverage) {
-		super(_beverage);
-	}
-
-	@Override
-	public void decorateBeverage() {
-		super.decorateBeverage();
-		decorateLemon();
-	}
-
-	public void decorateLemon() {
-		System.out.println("Added Lemon to:" + beverage.getName());
+	public LemonDecorator(Beverage beverage) {
+		super(beverage);
 	}
 
 	@Override
@@ -26,7 +16,7 @@ public class LemonDecorator extends BeverageDecorator {
 
 	@Override
 	public String getDecoratedName() {
-		return "lemon";
+		return "Lemon";
 	}
 
 }
