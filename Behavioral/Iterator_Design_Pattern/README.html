@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Iterator Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="iterator-design-pattern-behavioral">Iterator Design Pattern (Behavioral)</h1>
+<blockquote>
+<p>Traverse a collection without knowing how it is stored.</p>
+</blockquote>
+<hr />
+<h2 id="intent">Intent</h2>
+<p>The Iterator pattern provides a standard way to step through the elements of a collection sequentially without exposing the collection's internal data structure. It decouples the traversal algorithm from the collection itself so that the same client code can walk a list, a tree, or any other aggregate by talking only to the iterator interface. This also lets multiple independent traversals run simultaneously on the same collection because each iterator carries its own position state.</p>
+<hr />
+<h2 id="real-world-analogy">Real-world analogy</h2>
+<p>Think of a music streaming app's queue. When you press <strong>Next</strong>, you do not reach into the app's internal database or linked list to find which song comes after the current one — you simply press a button that says "give me the next track." The internal data structure (sorted by timestamp, stored in a ring buffer, backed by a graph, whatever) is completely irrelevant to you. That <strong>Next</strong> button is the iterator. It remembers where you are in the queue and moves forward on demand without you needing to know anything about how the playlist is arranged under the hood. This codebase models exactly that scenario.</p>
+<hr />
+<h2 id="how-the-pattern-works">How the pattern works</h2>
+<p>Two parallel hierarchies collaborate:</p>
+<table>
+<thead>
+<tr>
+<th>Side</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Collection hierarchy</strong></td>
+<td>Knows how elements are stored; can produce an iterator that understands that storage.</td>
+</tr>
+<tr>
+<td><strong>Iterator hierarchy</strong></td>
+<td>Holds a cursor into the collection; exposes <code>hasNext()</code> and <code>next()</code> to advance.</td>
+</tr>
+</tbody>
+</table>
+<p>The client talks only to the two interfaces — <code>IterableCollection</code> and <code>IIterator</code> — and never touches the concrete <code>Playlist</code> or <code>PlaylistIterator</code> directly after the initial setup call. This is the Open/Closed principle: new collection types can be added without changing any iterator-consuming code.</p>
+<hr />
+<h2 id="uml-class-diagram-ascii">UML class diagram (ASCII)</h2>
+<pre><code>  &lt;&lt;interface&gt;&gt;                       &lt;&lt;interface&gt;&gt;
+IterableCollection&lt;T&gt;               IIterator&lt;T&gt;
++createIterator(): IIterator&lt;T&gt;     +hasNext(): boolean
+         ^                          +next(): T
+         |                                ^
+         |                                |
+    Playlist --------------------------&gt; PlaylistIterator
+    -songs: List&lt;String&gt;                -playlist: Playlist
+    +addSong(String): void              -index: int
+    +getSongAt(int): String             +hasNext(): boolean
+    +getSize(): int                     +next(): String
+    +createIterator(): IIterator&lt;String&gt;
+
+                     IteratorDesignPattern
+                     +main(String[]): void
+                              |
+                              | uses
+                              v
+                     Playlist + IIterator&lt;String&gt;
+</code></pre>
+<hr />
+<h2 id="the-players">The players</h2>
+<ul>
+<li><strong><code>IIterator&lt;T&gt;</code></strong> — The <em>Iterator</em> interface. Declares the two-method contract (<code>hasNext</code>, <code>next</code>) that all iterators must honour. Typed with a generic <code>T</code> so it works for any element type.</li>
+<li><strong><code>IterableCollection&lt;T&gt;</code></strong> — The <em>Aggregate</em> interface. Any collection that wants to be traversed implements this and returns an <code>IIterator&lt;T&gt;</code> from <code>createIterator()</code>.</li>
+<li><strong><code>Playlist</code></strong> — The <em>ConcreteAggregate</em>. Holds the actual songs in an <code>ArrayList</code>, implements <code>IterableCollection&lt;String&gt;</code>, and manufactures a <code>PlaylistIterator</code> for itself.</li>
+<li><strong><code>PlaylistIterator</code></strong> — The <em>ConcreteIterator</em>. Keeps a cursor (<code>index</code>) into the playlist and implements the traversal logic.</li>
+<li><strong><code>IteratorDesignPattern</code></strong> — The <em>Client / entry point</em>. Builds a playlist, obtains an iterator, and consumes it without knowing anything about <code>ArrayList</code> or index arithmetic.</li>
+</ul>
+<hr />
+<h2 id="code-walkthrough-every-line-explained">Code walkthrough — every line explained</h2>
+<hr />
+<h3 id="iiteratorjava"><code>IIterator.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.iterator.contract;
+
+public interface IIterator&lt;T&gt; {
+
+    boolean hasNext();
+
+    T next();
+}
+</code></pre>
+<p><strong>Line by line:</strong></p>
+<ul>
+<li><code>package com.design.patterns.iterator.contract;</code> — Declares that this compilation unit belongs to the <code>contract</code> sub-package, signalling that everything inside this package is a public API contract, not an implementation detail. Placing contracts in their own package makes it easy to depend on the abstraction layer in isolation.</li>
+<li><em>(blank line)</em> — Visual separation between the package declaration and the type declaration; a Java style convention with no semantic effect.</li>
+<li><code>public interface IIterator&lt;T&gt; {</code> — Declares a generic, publicly accessible interface named <code>IIterator</code>. The <code>&lt;T&gt;</code> type parameter is a placeholder for the element type the iterator will return; callers substitute a concrete type (e.g., <code>String</code>) at use-site, making this contract reusable for any collection element type. The opening brace <code>{</code> begins the interface body.</li>
+<li><em>(blank line)</em> — Visual separation before the first method declaration.</li>
+<li><code>boolean hasNext();</code> — Declares the <em>guard method</em> of the iterator contract. Any implementing class must provide a method that returns <code>true</code> when there are more elements remaining, <code>false</code> when the cursor has reached the end. Clients call this before every call to <code>next()</code> to avoid overrunning the collection.</li>
+<li><em>(blank line)</em> — Visual separation between the two method declarations.</li>
+<li><code>T next();</code> — Declares the <em>advance method</em>. Returns the element at the current cursor position and moves the cursor forward by one. The return type <code>T</code> is the same type parameter declared on the interface, so the caller receives a strongly typed element without casting.</li>
+<li><code>}</code> — Closes the <code>IIterator&lt;T&gt;</code> interface body.</li>
+</ul>
+<hr />
+<h3 id="iterablecollectionjava"><code>IterableCollection.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.iterator.contract;
+
+public interface IterableCollection&lt;T&gt; {
+
+    IIterator&lt;T&gt; createIterator();
+}
+</code></pre>
+<p><strong>Line by line:</strong></p>
+<ul>
+<li><code>package com.design.patterns.iterator.contract;</code> — Places this interface in the same <code>contract</code> package as <code>IIterator</code>, keeping both halves of the abstract layer together and importable as a unit.</li>
+<li><em>(blank line)</em> — Visual separator before the type declaration.</li>
+<li><code>public interface IterableCollection&lt;T&gt; {</code> — Declares the <em>Aggregate</em> interface. <code>public</code> makes it accessible from any package. The <code>&lt;T&gt;</code> type parameter flows through to the return type of <code>createIterator()</code>, ensuring that a collection of <code>String</code> produces an <code>IIterator&lt;String&gt;</code> — the types are bound at compile time with no unsafe casts. The <code>{</code> opens the interface body.</li>
+<li><em>(blank line)</em> — Visual separator before the method declaration.</li>
+<li><code>IIterator&lt;T&gt; createIterator();</code> — Declares the <em>factory method</em> of the aggregate contract. Any concrete collection that implements this interface must override this method and return an iterator wired to itself. By returning <code>IIterator&lt;T&gt;</code> rather than a concrete iterator class, the interface hides the iterator implementation from all callers — the client code only ever sees <code>IIterator&lt;T&gt;</code>.</li>
+<li><code>}</code> — Closes the <code>IterableCollection&lt;T&gt;</code> interface body.</li>
+</ul>
+<hr />
+<h3 id="playlistjava"><code>Playlist.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.iterator.contract.concrets;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.design.patterns.iterator.contract.IIterator;
+import com.design.patterns.iterator.contract.IterableCollection;
+
+public class Playlist implements IterableCollection&lt;String&gt; {
+    private final List&lt;String&gt; songs = new ArrayList&lt;&gt;();
+
+    public void addSong(String song) {
+        songs.add(song);
+    }
+
+    public String getSongAt(int index) {
+        return songs.get(index);
+    }
+
+    public int getSize() {
+        return songs.size();
+    }
+
+    @Override
+    public IIterator&lt;String&gt; createIterator() {
+        return new PlaylistIterator(this);
+    }
+}
+</code></pre>
+<p><strong>Line by line:</strong></p>
+<ul>
+<li><code>package com.design.patterns.iterator.contract.concrets;</code> — Declares this file's package as <code>concrets</code> (a sub-package of <code>contract</code>), grouping all concrete implementations away from the interfaces while keeping them logically related under the same root.</li>
+<li><em>(blank line)</em> — Separates the package declaration from the import block.</li>
+<li><code>import java.util.ArrayList;</code> — Brings <code>ArrayList</code> (the JDK's resizable-array implementation of <code>List</code>) into scope so it can be referenced by simple name without the full qualified path. <code>ArrayList</code> is chosen here because songs are added sequentially and accessed by numeric index — operations that <code>ArrayList</code> handles in O(1) amortised time.</li>
+<li><code>import java.util.List;</code> — Brings the <code>List&lt;E&gt;</code> interface into scope. Declaring the field type as the interface (<code>List&lt;String&gt;</code>) rather than the concrete class (<code>ArrayList&lt;String&gt;</code>) means the field type is narrower than the implementation — a deliberate choice to hide the <code>ArrayList</code>-specific API from the rest of the class.</li>
+<li><em>(blank line)</em> — Separates the JDK imports from the project imports.</li>
+<li><code>import com.design.patterns.iterator.contract.IIterator;</code> — Brings the custom <code>IIterator&lt;T&gt;</code> interface into scope so <code>createIterator()</code> can reference it as its return type.</li>
+<li><code>import com.design.patterns.iterator.contract.IterableCollection;</code> — Brings <code>IterableCollection&lt;T&gt;</code> into scope so <code>Playlist</code> can declare <code>implements IterableCollection&lt;String&gt;</code>.</li>
+<li><em>(blank line)</em> — Separates the import block from the class declaration.</li>
+<li><code>public class Playlist implements IterableCollection&lt;String&gt; {</code> — Declares the concrete aggregate. <code>public</code> makes it visible everywhere. <code>implements IterableCollection&lt;String&gt;</code> binds the generic type parameter <code>T</code> to <code>String</code>, meaning this class promises to produce an <code>IIterator&lt;String&gt;</code>. The <code>{</code> opens the class body.</li>
+<li><code>private final List&lt;String&gt; songs = new ArrayList&lt;&gt;();</code> — Declares the backing store. <code>private</code> hides the list from all external code — this is the information hiding that forces callers to use the iterator API instead of directly indexing the list. <code>final</code> prevents the field from being reassigned to a different <code>List</code> object after construction (the list's contents can still grow via <code>add</code>). <code>new ArrayList&lt;&gt;()</code> uses the diamond operator to infer the <code>String</code> type argument from the left-hand-side declaration.</li>
+<li><em>(blank line)</em> — Visual separator before the first method.</li>
+<li><code>public void addSong(String song) {</code> — Declares the <em>mutation method</em>. <code>public</code> so external code (the client / <code>main</code>) can populate the playlist. <code>void</code> because adding a song produces no return value. The parameter <code>song</code> is the song title string to be stored. The <code>{</code> opens the method body.</li>
+<li><code>songs.add(song);</code> — Delegates to <code>ArrayList.add()</code> to append <code>song</code> at the end of the internal list. This is the only place where the outside world can change the list's contents, keeping mutation controlled.</li>
+<li><code>}</code> — Closes the <code>addSong</code> method body.</li>
+<li><em>(blank line)</em> — Visual separator between methods.</li>
+<li><code>public String getSongAt(int index) {</code> — Declares the <em>indexed-read accessor</em>. <code>public</code> so <code>PlaylistIterator</code> (a different class, even though it is in the same package) can retrieve elements by position. Returning <code>String</code> directly rather than an <code>Object</code> is safe because the list is <code>List&lt;String&gt;</code>. The <code>{</code> opens the method body.</li>
+<li><code>return songs.get(index);</code> — Delegates to <code>ArrayList.get(index)</code>, which returns the element at position <code>index</code> in O(1) time. The iterator calls this method repeatedly, passing its cursor value.</li>
+<li><code>}</code> — Closes the <code>getSongAt</code> method body.</li>
+<li><em>(blank line)</em> — Visual separator between methods.</li>
+<li><code>public int getSize() {</code> — Declares the <em>size accessor</em>. <code>public</code> so <code>PlaylistIterator.hasNext()</code> can compare the current cursor against the playlist length without accessing the private <code>songs</code> field directly. The <code>{</code> opens the method body.</li>
+<li><code>return songs.size();</code> — Delegates to <code>ArrayList.size()</code>, returning the number of songs currently in the list as an <code>int</code>.</li>
+<li><code>}</code> — Closes the <code>getSize</code> method body.</li>
+<li><em>(blank line)</em> — Visual separator before the <code>createIterator</code> override.</li>
+<li><code>@Override</code> — An annotation that instructs the compiler to verify that the method immediately below it actually overrides a method declared in a supertype. If the signature drifts (e.g., a typo in the method name), the compiler emits an error rather than silently creating an unrelated overload.</li>
+<li><code>public IIterator&lt;String&gt; createIterator() {</code> — Implements the factory method required by <code>IterableCollection&lt;String&gt;</code>. Returns <code>IIterator&lt;String&gt;</code> (the interface type), not <code>PlaylistIterator</code> (the concrete type), so callers remain decoupled from the iterator implementation. The <code>{</code> opens the method body.</li>
+<li><code>return new PlaylistIterator(this);</code> — Constructs a fresh <code>PlaylistIterator</code>, passing <code>this</code> (the current <code>Playlist</code> instance) as a back-reference so the iterator can call <code>getSongAt</code> and <code>getSize</code>. A new instance is created each time so that multiple iterators can operate independently on the same playlist.</li>
+<li><code>}</code> — Closes the <code>createIterator</code> method body.</li>
+<li><code>}</code> — Closes the <code>Playlist</code> class body.</li>
+</ul>
+<hr />
+<h3 id="playlistiteratorjava"><code>PlaylistIterator.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.iterator.contract.concrets;
+
+import com.design.patterns.iterator.contract.IIterator;
+
+public class PlaylistIterator implements IIterator&lt;String&gt; {
+    private final Playlist playlist;
+    private int index = 0;
+
+    public PlaylistIterator(Playlist playlist) {
+        this.playlist = playlist;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return index &lt; playlist.getSize();
+    }
+
+    @Override
+    public String next() {
+        return playlist.getSongAt(index++);
+    }
+}
+</code></pre>
+<p><strong>Line by line:</strong></p>
+<ul>
+<li><code>package com.design.patterns.iterator.contract.concrets;</code> — Places <code>PlaylistIterator</code> in the same <code>concrets</code> package as <code>Playlist</code>, allowing it to call the package-visible aspects of <code>Playlist</code> and keeping both concrete classes as a cohesive unit.</li>
+<li><em>(blank line)</em> — Separates the package declaration from the import block.</li>
+<li><code>import com.design.patterns.iterator.contract.IIterator;</code> — Brings <code>IIterator&lt;T&gt;</code> into scope so <code>PlaylistIterator</code> can declare <code>implements IIterator&lt;String&gt;</code>.</li>
+<li><em>(blank line)</em> — Separates the import block from the class declaration.</li>
+<li><code>public class PlaylistIterator implements IIterator&lt;String&gt; {</code> — Declares the concrete iterator. <code>implements IIterator&lt;String&gt;</code> binds <code>T</code> to <code>String</code>, consistent with the <code>Playlist</code> it will traverse. The <code>{</code> opens the class body.</li>
+<li><code>private final Playlist playlist;</code> — Holds a reference to the <code>Playlist</code> this iterator was created for. <code>private</code> encapsulates the back-reference; <code>final</code> ensures the iterator cannot be re-pointed at a different playlist after construction, which would break traversal invariants.</li>
+<li><code>private int index = 0;</code> — The <em>cursor</em>: an integer that tracks the position of the next element to be returned. Initialised to <code>0</code> so traversal begins at the first song. <code>private</code> prevents external code from manipulating the cursor and corrupting the traversal.</li>
+<li><em>(blank line)</em> — Visual separator before the constructor.</li>
+<li><code>public PlaylistIterator(Playlist playlist) {</code> — The constructor. <code>public</code> so <code>Playlist.createIterator()</code> (in the same package) can call it. The parameter <code>playlist</code> is the collection this iterator will traverse. The <code>{</code> opens the constructor body.</li>
+<li><code>this.playlist = playlist;</code> — Assigns the constructor parameter to the instance field. The <code>this.</code> prefix disambiguates the field from the parameter, both of which are named <code>playlist</code>.</li>
+<li><code>}</code> — Closes the constructor body.</li>
+<li><em>(blank line)</em> — Visual separator before the first interface method.</li>
+<li><code>@Override</code> — Instructs the compiler to verify that <code>hasNext()</code> overrides a method in <code>IIterator&lt;String&gt;</code>. Protects against typos in the method name.</li>
+<li><code>public boolean hasNext() {</code> — Implements the guard method from <code>IIterator</code>. <code>public</code> is required because the interface method is <code>public</code>. Returns <code>boolean</code>. The <code>{</code> opens the method body.</li>
+<li><code>return index &lt; playlist.getSize();</code> — The core guard predicate. <code>index</code> is the position of the <em>next</em> element to return. If <code>index</code> is strictly less than the total number of songs, at least one more element exists and the method returns <code>true</code>. When <code>index</code> equals <code>getSize()</code> (i.e., the cursor has moved past the last element), it returns <code>false</code>, stopping the while-loop in the client.</li>
+<li><code>}</code> — Closes the <code>hasNext</code> method body.</li>
+<li><em>(blank line)</em> — Visual separator between the two iterator methods.</li>
+<li><code>@Override</code> — Same compiler-check annotation for the <code>next()</code> override.</li>
+<li><code>public String next() {</code> — Implements the advance method from <code>IIterator</code>. Returns <code>String</code> because <code>T</code> is bound to <code>String</code>. The <code>{</code> opens the method body.</li>
+<li><code>return playlist.getSongAt(index++);</code> — The traversal step. <code>index++</code> is <em>post-increment</em>: the current value of <code>index</code> is passed to <code>getSongAt()</code> first (so the correct element is retrieved), and then <code>index</code> is incremented by 1 to prepare the cursor for the next call. This is the idiomatic way to return-then-advance in a single expression, avoiding a separate <code>index = index + 1</code> statement.</li>
+<li><code>}</code> — Closes the <code>next</code> method body.</li>
+<li><code>}</code> — Closes the <code>PlaylistIterator</code> class body.</li>
+</ul>
+<hr />
+<h3 id="iteratordesignpatternjava"><code>IteratorDesignPattern.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.iterator;
+
+import com.design.patterns.iterator.contract.IIterator;
+import com.design.patterns.iterator.contract.concrets.Playlist;
+
+public class IteratorDesignPattern {
+
+    public static void main(String[] args) {
+        System.out.println(&quot;Iterator Design Pattern&quot;);
+
+        Playlist playlist = new Playlist();
+        playlist.addSong(&quot;Shape of You&quot;);
+        playlist.addSong(&quot;Bohemian Rhapsody&quot;);
+        playlist.addSong(&quot;Blinding Lights&quot;);
+
+        IIterator&lt;String&gt; iterator = playlist.createIterator();
+
+        System.out.println(&quot;Now Playing:&quot;);
+        while (iterator.hasNext()) {
+            System.out.println(&quot; 🎵 &quot; + iterator.next());
+        }
+    }
+}
+</code></pre>
+<p><strong>Line by line:</strong></p>
+<ul>
+<li><code>package com.design.patterns.iterator;</code> — Places the entry-point class in the root <code>iterator</code> package, one level above the <code>contract</code> and <code>concrets</code> sub-packages. This mirrors a typical project structure where the launcher lives at the root and imports from the sub-packages.</li>
+<li><em>(blank line)</em> — Separates the package declaration from the import block.</li>
+<li><code>import com.design.patterns.iterator.contract.IIterator;</code> — Brings <code>IIterator&lt;T&gt;</code> into scope. The variable <code>iterator</code> is typed as this interface, not as <code>PlaylistIterator</code>, demonstrating that the client depends only on the abstraction.</li>
+<li><code>import com.design.patterns.iterator.contract.concrets.Playlist;</code> — Brings <code>Playlist</code> into scope so it can be instantiated. <code>PlaylistIterator</code> is intentionally <em>not</em> imported here — the client never references the concrete iterator class by name; it receives an <code>IIterator&lt;String&gt;</code> through the factory method.</li>
+<li><em>(blank line)</em> — Separates the import block from the class declaration.</li>
+<li><code>public class IteratorDesignPattern {</code> — Declares the public entry-point class. The class name matches the file name (a Java requirement). The <code>{</code> opens the class body.</li>
+<li><em>(blank line)</em> — Visual separator before the <code>main</code> method.</li>
+<li><code>public static void main(String[] args) {</code> — The JVM entry point. <code>public</code> so the JVM can call it from outside the class. <code>static</code> so it can be invoked without instantiating <code>IteratorDesignPattern</code>. <code>void</code> because the method has no return value to the JVM. <code>String[] args</code> captures any command-line arguments (none are used here). The <code>{</code> opens the method body.</li>
+<li><code>System.out.println("Iterator Design Pattern");</code> — Prints the banner line to standard output followed by a newline. This is the first line that appears in the console when the program runs, identifying which pattern is being demonstrated.</li>
+<li><em>(blank line)</em> — Visual separator in the source before the playlist setup block.</li>
+<li><code>Playlist playlist = new Playlist();</code> — Creates a new, empty <code>Playlist</code> instance. The variable is typed as <code>Playlist</code> (the concrete class) because the client <em>needs</em> to call <code>addSong()</code>, which is not part of the <code>IterableCollection</code> interface. After population, the client will switch to the abstract <code>IIterator</code> type.</li>
+<li><code>playlist.addSong("Shape of You");</code> — Calls <code>Playlist.addSong</code>, which appends the string <code>"Shape of You"</code> to the internal <code>ArrayList</code>. This becomes element at index <code>0</code>.</li>
+<li><code>playlist.addSong("Bohemian Rhapsody");</code> — Appends <code>"Bohemian Rhapsody"</code> to the list. This becomes element at index <code>1</code>.</li>
+<li><code>playlist.addSong("Blinding Lights");</code> — Appends <code>"Blinding Lights"</code> to the list. This becomes element at index <code>2</code>. The list now has size <code>3</code>.</li>
+<li><em>(blank line)</em> — Visual separator before the iterator creation.</li>
+<li><code>IIterator&lt;String&gt; iterator = playlist.createIterator();</code> — Calls the factory method on the playlist. <code>Playlist.createIterator()</code> returns <code>new PlaylistIterator(this)</code> — but here the variable is declared as <code>IIterator&lt;String&gt;</code>, so the concrete type <code>PlaylistIterator</code> is invisible to all code below this line. This is the key decoupling moment: from here on, the loop works against the interface alone.</li>
+<li><em>(blank line)</em> — Visual separator before the traversal block.</li>
+<li><code>System.out.println("Now Playing:");</code> — Prints the section header to standard output followed by a newline. Appears immediately before the song listing.</li>
+<li><code>while (iterator.hasNext()) {</code> — Begins the traversal loop. The condition calls <code>IIterator.hasNext()</code> on each iteration. The loop body executes as long as the iterator reports more elements available. The <code>{</code> opens the loop body.</li>
+<li><code>System.out.println(" 🎵 " + iterator.next());</code> — The single statement in the loop body. <code>iterator.next()</code> retrieves the song at the current cursor position and advances the cursor. The string <code>" 🎵 "</code> (a space, a musical note emoji, and a space) is prepended to the song title using string concatenation before printing to standard output. <code>println</code> appends a newline after each song.</li>
+<li><code>}</code> — Closes the <code>while</code> loop body. Control returns to the condition check (<code>iterator.hasNext()</code>).</li>
+<li><code>}</code> — Closes the <code>main</code> method body.</li>
+<li><code>}</code> — Closes the <code>IteratorDesignPattern</code> class body.</li>
+</ul>
+<hr />
+<h2 id="why-these-design-decisions">Why these design decisions</h2>
+<h3 id="why-the-iterator-pattern-here">Why the Iterator pattern here</h3>
+<p>A playlist is inherently a sequence — clients need to walk it from start to finish. But clients should not be coupled to the fact that <code>Playlist</code> uses an <code>ArrayList</code> internally. If the storage ever changes (a linked list, a database cursor, a remote stream), the client code stays unchanged as long as the iterator contract is honoured. The pattern also opens the door to multiple iterator flavours later (reverse iterator, shuffle iterator, filtered iterator) without modifying <code>Playlist</code> or the client at all.</p>
+<h3 id="why-two-separate-interfaces-iiterator-and-iterablecollection">Why two separate interfaces (<code>IIterator</code> and <code>IterableCollection</code>)</h3>
+<p>Splitting the contracts separates two distinct concerns: <em>how to traverse</em> (<code>IIterator</code>) and <em>how to produce a traversal</em> (<code>IterableCollection</code>). This allows, for example, a class to implement <code>IterableCollection</code> but delegate traversal to a completely different class hierarchy, or for an iterator to outlive the scope where the collection was created.</p>
+<h3 id="why-playlist-exposes-getsongat-and-getsize-rather-than-giving-the-iterator-direct-field-access">Why <code>Playlist</code> exposes <code>getSongAt</code> and <code>getSize</code> rather than giving the iterator direct field access</h3>
+<p><code>PlaylistIterator</code> is in a separate class and therefore cannot access <code>Playlist</code>'s <code>private</code> field <code>songs</code> directly. Providing narrow accessor methods (<code>getSongAt</code>, <code>getSize</code>) instead of making the field package-private or public keeps the list fully encapsulated. Only the two operations the iterator actually needs are exposed — nothing more.</p>
+<h3 id="why-index-post-increment-inside-getsongatindex">Why <code>index++</code> (post-increment) inside <code>getSongAt(index++)</code></h3>
+<p>Post-increment evaluates to the <em>current</em> value for the expression and then increments. This idiom retrieves the element at the current position <em>and</em> moves the cursor forward in one line, exactly as an iterator must do. The alternative — a separate <code>index = index + 1</code> below the return — would not compile (code after <code>return</code> is unreachable in Java).</p>
+<h3 id="why-this-is-passed-to-the-playlistiterator-constructor">Why <code>this</code> is passed to the <code>PlaylistIterator</code> constructor</h3>
+<p>The iterator needs to query the playlist for element values and size, but should not own the data. Passing <code>this</code> gives the iterator a reference to call the playlist's accessor methods, keeping the data in one place (the playlist) while the cursor state lives in the iterator. This also means two iterators created from the same playlist share the data without duplication.</p>
+<h3 id="trade-offs">Trade-offs</h3>
+<table>
+<thead>
+<tr>
+<th>Benefit</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client is fully decoupled from storage structure</td>
+<td>Extra classes per collection type</td>
+</tr>
+<tr>
+<td>Multiple concurrent iterators on the same collection</td>
+<td>Iterator becomes invalid if the collection is structurally modified mid-traversal (no fail-fast here unlike <code>java.util.Iterator</code>)</td>
+</tr>
+<tr>
+<td>New iterator strategies (reverse, filtered) are open for addition</td>
+<td>Iterator must trust that <code>getSongAt</code> is safe for the index range it calculated</td>
+</tr>
+<tr>
+<td>Strongly typed — no casting at call sites</td>
+<td>Requires Java generics literacy to read</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="execution-flow-step-by-step-trace-of-main">Execution flow (step-by-step trace of main())</h2>
+<pre><code>1. JVM calls main(String[]).
+
+2. System.out.println(&quot;Iterator Design Pattern&quot;)
+   -&gt; prints &quot;Iterator Design Pattern\n&quot;
+
+3. new Playlist()
+   -&gt; constructs Playlist; songs = []  (empty ArrayList)
+
+4. playlist.addSong(&quot;Shape of You&quot;)
+   -&gt; songs = [&quot;Shape of You&quot;]
+
+5. playlist.addSong(&quot;Bohemian Rhapsody&quot;)
+   -&gt; songs = [&quot;Shape of You&quot;, &quot;Bohemian Rhapsody&quot;]
+
+6. playlist.addSong(&quot;Blinding Lights&quot;)
+   -&gt; songs = [&quot;Shape of You&quot;, &quot;Bohemian Rhapsody&quot;, &quot;Blinding Lights&quot;]
+
+7. playlist.createIterator()
+   -&gt; new PlaylistIterator(playlist)
+      PlaylistIterator.playlist = &lt;Playlist ref&gt;
+      PlaylistIterator.index    = 0
+   -&gt; returned as IIterator&lt;String&gt;
+
+8. System.out.println(&quot;Now Playing:&quot;)
+   -&gt; prints &quot;Now Playing:\n&quot;
+
+--- Loop iteration 1 ---
+9.  iterator.hasNext()  -&gt;  index(0) &lt; getSize()(3)  -&gt;  true  -&gt; enter loop
+10. iterator.next()     -&gt;  getSongAt(0)  -&gt;  &quot;Shape of You&quot;;  index becomes 1
+11. System.out.println(&quot; 🎵 Shape of You&quot;)
+
+--- Loop iteration 2 ---
+12. iterator.hasNext()  -&gt;  index(1) &lt; 3  -&gt;  true
+13. iterator.next()     -&gt;  getSongAt(1)  -&gt;  &quot;Bohemian Rhapsody&quot;;  index becomes 2
+14. System.out.println(&quot; 🎵 Bohemian Rhapsody&quot;)
+
+--- Loop iteration 3 ---
+15. iterator.hasNext()  -&gt;  index(2) &lt; 3  -&gt;  true
+16. iterator.next()     -&gt;  getSongAt(2)  -&gt;  &quot;Blinding Lights&quot;;  index becomes 3
+17. System.out.println(&quot; 🎵 Blinding Lights&quot;)
+
+--- Loop check 4 ---
+18. iterator.hasNext()  -&gt;  index(3) &lt; 3  -&gt;  false  -&gt; exit loop
+
+19. main() returns; JVM exits.
+</code></pre>
+<hr />
+<h2 id="expected-output">Expected output</h2>
+<pre><code>Iterator Design Pattern
+Now Playing:
+ 🎵 Shape of You
+ 🎵 Bohemian Rhapsody
+ 🎵 Blinding Lights
+</code></pre>
+<hr />
+<h2 id="how-to-run">How to run</h2>
+<pre><code class="language-bash"># From the Iterator_Design_Pattern module root
+mvn clean package
+
+java -cp target/classes com.design.patterns.iterator.IteratorDesignPattern
+</code></pre>
+<p>If building from the parent aggregator:</p>
+<pre><code class="language-bash"># From Design-Pattern-GO4 root
+mvn clean package -pl Behavioral/Iterator_Design_Pattern
+
+java -cp Behavioral/Iterator_Design_Pattern/target/classes \
+     com.design.patterns.iterator.IteratorDesignPattern
+</code></pre>
+<hr />
+<h2 id="other-real-world-problems-this-pattern-can-solve">Other real-world problems this pattern can solve</h2>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Collection</th>
+<th>What the iterator hides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>File system walker</strong></td>
+<td>Directory tree</td>
+<td>Recursive DFS vs BFS vs OS <code>readdir</code> calls</td>
+</tr>
+<tr>
+<td><strong>Database result set</strong></td>
+<td>Query results</td>
+<td>JDBC cursor, pagination, lazy loading</td>
+</tr>
+<tr>
+<td><strong>Social-media feed</strong></td>
+<td>Post stream</td>
+<td>Pagination tokens, API rate-limit retries, caching</td>
+</tr>
+<tr>
+<td><strong>GUI component tree</strong></td>
+<td>Widget hierarchy</td>
+<td>Tree traversal order, visibility filtering</td>
+</tr>
+<tr>
+<td><strong>Build pipeline</strong></td>
+<td>Task graph</td>
+<td>Topological sort, dependency resolution</td>
+</tr>
+<tr>
+<td><strong>Log processing</strong></td>
+<td>Log file</td>
+<td>Line buffering, gzip decompression, remote fetch</td>
+</tr>
+<tr>
+<td><strong>Shopping cart checkout</strong></td>
+<td>Cart items</td>
+<td>Discount rule application order, availability checks</td>
+</tr>
+<tr>
+<td><strong>Notification queue</strong></td>
+<td>Alert list</td>
+<td>Priority ordering, deduplication, delivery-status filtering</td>
+</tr>
+</tbody>
+</table>
+<p>In every case the client loop is identical — <code>while (it.hasNext()) { process(it.next()); }</code> — and the complexity lives inside the iterator, fully hidden from the consumer.</p>
+</body>
+</html>

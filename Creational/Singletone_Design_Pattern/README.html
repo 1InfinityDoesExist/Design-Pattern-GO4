@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Singletone Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="singleton-design-pattern">Singleton Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Guarantee that a class has <strong>exactly one instance</strong> for the whole lifetime of the JVM, and give everyone a single global access point to reach it.</p>
+<p>This implementation is the <strong>thread-safe, lazily-initialized</strong> variant, built with the <em>double-checked locking</em> idiom over a private <code>volatile</code> field and a private mutex object.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code>+-----------------------------------------+
+|            SingletonPattern             |
++-----------------------------------------+
+| - instance : SingletonPattern  {static,volatile}
+| - mutex    : Object            {static,final}
++-----------------------------------------+
+| - SingletonPattern()            &lt;&lt;private ctor&gt;&gt;
+| + getInstance() : SingletonPattern {static}
+| + msg() : void                          |
++-----------------------------------------+
+ client --&gt; SingletonPattern.getInstance() --&gt; the ONE shared instance
+</code></pre>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<pre><code class="language-java">package com.design.patterns.singletone;
+
+public class SingletonPattern {
+
+    private static volatile SingletonPattern instance;
+    private static final Object mutex = new Object();
+
+    private SingletonPattern() {
+    }
+
+    public static SingletonPattern getInstance() {
+        SingletonPattern result = instance;
+        if (result == null) {
+            synchronized (mutex) {
+                result = instance;
+                if (result == null) {
+                    instance = result = new SingletonPattern();
+                }
+            }
+        }
+        return result;
+    }
+
+    public void msg() {
+        System.out.println(&quot;Threadsafe singletone design pattern implemented&quot;);
+    }
+}
+</code></pre>
+<h3 id="private-static-volatile-singletonpattern-instance"><code>private static volatile SingletonPattern instance;</code></h3>
+<ul>
+<li><code>static</code> — the single instance is held on the <strong>class</strong>, not on any object. There is one slot per JVM, which is exactly what "single instance" means.</li>
+<li><code>private</code> — nobody outside the class can touch the field directly; the only way in is through <code>getInstance()</code>. This is what lets the class <em>enforce</em> the guarantee instead of just hoping callers behave.</li>
+<li><code>volatile</code> — this is the critical one for correctness. Explained in depth in <strong><a href="#why-volatile">Why <code>volatile</code>?</a></strong> below.</li>
+<li>It is <strong>not</strong> initialized here (no <code>= new SingletonPattern()</code>). That makes the initialization <strong>lazy</strong> — the object is only built the first time someone actually asks for it, not when the class loads.</li>
+</ul>
+<h3 id="private-static-final-object-mutex-new-object"><code>private static final Object mutex = new Object();</code></h3>
+<ul>
+<li>A dedicated lock object. <code>getInstance()</code> synchronizes on <em>this</em> object rather than on <code>SingletonPattern.class</code> or on <code>this</code>.</li>
+<li><code>final</code> — the lock reference never changes, so every thread locks on the <em>same</em> monitor. A lock you could reassign would be a broken lock.</li>
+<li>Explained in depth in <strong><a href="#why-a-private-mutex-and-why-my-own-one">Why a private mutex?</a></strong> below.</li>
+</ul>
+<h3 id="private-singletonpattern"><code>private SingletonPattern() { }</code></h3>
+<ul>
+<li>The constructor is <strong>private</strong>. This is the wall that makes the pattern real: no other class can write <code>new SingletonPattern()</code>. If the constructor were public, callers could make as many instances as they liked and the "single" guarantee would be a lie.</li>
+<li>The only code allowed to call this constructor is <code>getInstance()</code>, inside this same class.</li>
+</ul>
+<h3 id="getinstance-the-double-checked-locking-flow"><code>getInstance()</code> — the double-checked locking flow</h3>
+<pre><code class="language-java">SingletonPattern result = instance;   // (1) read the volatile ONCE into a local
+if (result == null) {                 // (2) first check — no lock
+    synchronized (mutex) {            // (3) only contend for the lock if it looks unbuilt
+        result = instance;            // (4) re-read inside the lock
+        if (result == null) {         // (5) second check — now under mutual exclusion
+            instance = result = new SingletonPattern();  // (6) build exactly once
+        }
+    }
+}
+return result;                        // (7) hand back the one instance
+</code></pre>
+<ol>
+<li><strong><code>SingletonPattern result = instance;</code></strong> — copy the <code>volatile</code> field into a local variable. This is a deliberate optimization: reading a <code>volatile</code> is more expensive than reading a local, and on the common path (instance already exists) we want to touch the volatile only once. This is the <em>"local variable"</em> micro-optimization popularized by Effective Java.</li>
+<li><strong>First <code>if (result == null)</code></strong> — the fast path. Once the singleton has been created, <code>result</code> is non-null and we skip the <code>synchronized</code> block <strong>entirely</strong>. This means after the one-time setup, <code>getInstance()</code> costs nothing more than one volatile read — no locking, no contention.</li>
+<li><strong><code>synchronized (mutex)</code></strong> — we only reach here when it <em>looks</em> like the instance hasn't been built yet. We take the lock so that only one thread at a time can proceed to create it.</li>
+<li><strong><code>result = instance;</code></strong> — re-read the field now that we hold the lock. Another thread may have created the instance between our first check (step 2) and us acquiring the lock (step 3).</li>
+<li><strong>Second <code>if (result == null)</code></strong> — the "double check". If some other thread already built the instance while we were waiting for the lock, this is now non-null and we do <strong>not</strong> build a second one.</li>
+<li><strong><code>instance = result = new SingletonPattern();</code></strong> — the one and only construction. Assigns to the local (<code>result</code>) and publishes to the <code>volatile</code> field (<code>instance</code>) in one statement.</li>
+<li><strong><code>return result;</code></strong> — every caller, first or millionth, receives the identical object.</li>
+</ol>
+<h3 id="msg"><code>msg()</code></h3>
+<p>An ordinary instance method, just here to prove the returned object is usable: <code>SingletonPattern.getInstance().msg()</code> prints the confirmation line.</p>
+<hr />
+<h2 id="why-the-design-decisions-the-why-not-the-what">Why the design decisions (the "why", not the "what")</h2>
+<h3 id="why-lazy-initialization-at-all">Why lazy initialization at all?</h3>
+<p>The instance is built on first use rather than at class-load time. Useful when constructing the singleton is expensive (opens connections, reads files, allocates big buffers) and you don't want to pay that cost — or risk that failure — unless something actually needs it. The trade-off is that lazy creation is exactly what forces us to think about threads, which is where everything below comes from.</p>
+<h3 id="why-worry-about-threads">Why worry about threads?</h3>
+<p>If two threads call <code>getInstance()</code> at the same time on a naive lazy singleton:</p>
+<pre><code class="language-java">if (instance == null) {            // both threads see null
+    instance = new SingletonPattern();   // both construct → TWO instances
+}
+</code></pre>
+<p>Both can pass the <code>null</code> check before either assigns, and you end up with <strong>two</strong> instances. That breaks the entire guarantee. So a lazy singleton <em>must</em> be synchronized somehow.</p>
+<h3 id="why-not-just-synchronized-the-whole-method">Why not just <code>synchronized</code> the whole method?</h3>
+<p>The simplest fix is:</p>
+<pre><code class="language-java">public static synchronized SingletonPattern getInstance() {
+    if (instance == null) instance = new SingletonPattern();
+    return instance;
+}
+</code></pre>
+<p>This is correct but <strong>slow</strong>: <em>every</em> call acquires the lock forever, even though the lock is only ever needed for the single instant of creation. If the singleton is read on a hot path by many threads, they all serialize on that lock for no reason. Double-checked locking exists to pay the lock cost <strong>only once</strong> — during creation — and run lock-free afterwards.</p>
+<h3 id="why-a-private-mutex-and-why-my-own-one">Why a private mutex, and why "my own" one?</h3>
+<p>Instead of <code>synchronized(SingletonPattern.class)</code> or <code>synchronized(this)</code>, this code locks on a <strong>private <code>Object mutex</code></strong> that it owns. The reason is <strong>encapsulation of the lock</strong>:</p>
+<ul>
+<li>If you lock on <code>SingletonPattern.class</code>, that monitor is <strong>publicly reachable</strong> — any other code anywhere can also write <code>synchronized(SingletonPattern.class) { ... }</code> and now they are contending with, or even deadlocking, your singleton's internal locking. You don't control who else grabs a public lock.</li>
+<li><code>synchronized(this)</code> isn't even an option here because creation happens in a <code>static</code> method (there is no <code>this</code> yet), but the same argument applies to instance-level singletons: <code>this</code> leaks to callers who could lock on it.</li>
+<li>A <strong>private final <code>Object mutex</code></strong> is invisible outside the class. Nobody else can acquire it, so the lock's behavior is entirely under this class's control. This is the standard "private lock object" idiom — the lock is an implementation detail, not part of the public API.</li>
+</ul>
+<p><code>final</code> matters too: it means the mutex reference can never be reassigned, so all threads always synchronize on the <em>same</em> monitor. A non-final lock is a classic concurrency bug.</p>
+<h3 id="why-volatile">Why <code>volatile</code>?</h3>
+<p>This is the subtle heart of double-checked locking. Without <code>volatile</code>, DCL is <strong>broken</strong> — and it was famously broken in Java before the memory model was clarified.</p>
+<p>The dangerous line is:</p>
+<pre><code class="language-java">instance = new SingletonPattern();
+</code></pre>
+<p>This is <em>not</em> atomic. It is really three steps:</p>
+<ol>
+<li><strong>allocate</strong> memory for the object,</li>
+<li><strong>run the constructor</strong> to initialize the fields,</li>
+<li><strong>publish</strong> — assign the reference to <code>instance</code>.</li>
+</ol>
+<p>The JVM/CPU is allowed to <strong>reorder</strong> steps 2 and 3 when there is no <code>volatile</code>. If publication (3) happens <em>before</em> construction (2) finishes, then:</p>
+<ul>
+<li>Thread A is mid-construction: <code>instance</code> already points at a <strong>half-built</strong> object.</li>
+<li>Thread B calls <code>getInstance()</code>, sees <code>instance != null</code> on the fast path (step 2 of the flow), skips the lock, and <strong>returns the half-constructed object</strong>. Thread B then uses an object whose fields aren't initialized yet → corrupt state, random crashes.</li>
+</ul>
+<p><code>volatile</code> fixes this in two ways under the Java Memory Model (Java 5+):</p>
+<ol>
+<li>It <strong>forbids that reordering</strong> — the write to a <code>volatile</code> field cannot be moved before the writes that happen-before it, so the constructor is guaranteed to be fully done before the reference is visible.</li>
+<li>It establishes a <strong>happens-before / visibility</strong> relationship: once thread A writes the <code>volatile</code>, any thread that later reads it sees <em>all</em> the writes A made before it (the fully initialized fields), not a stale cached copy.</li>
+</ol>
+<p>Without <code>volatile</code>, a thread reading <code>instance</code> on the lock-free fast path could also just see a <strong>stale null</strong> (from its CPU cache) even after another thread created the instance, or worse, the half-built object above. <code>volatile</code> is what makes the lock-free first check actually safe.</p>
+<p><strong>In one sentence:</strong> the <code>synchronized</code>/mutex block prevents <em>two</em> instances from being <em>created</em>; <code>volatile</code> prevents <em>other threads</em> from <em>seeing</em> a partially-created one. You need both — that's why it's called double-checked <em>locking</em> over a <em>volatile</em> field.</p>
+<hr />
+<h2 id="execution-flow-as-run-from-main">Execution flow (as run from <code>main</code>)</h2>
+<pre><code>DesignPatternsApplication.main
+        │
+        ├── SpringApplication.run(...)          starts the Spring context (not required by the pattern)
+        │
+        └── SingletonPattern.getInstance()      first call
+                   │
+                   ├── result = instance (null)         first check fails
+                   ├── synchronized (mutex) { … }        take the private lock
+                   │        ├── result = instance (null) re-check, still null
+                   │        └── instance = new SingletonPattern()   built ONCE
+                   └── return instance
+                          │
+                          └── .msg() → prints &quot;Threadsafe singletone design pattern implemented&quot;
+
+Every later getInstance() call: result = instance (non-null) → returns immediately, no lock.
+</code></pre>
+<hr />
+<h2 id="alternatives-worth-knowing-and-why-this-one-was-chosen">Alternatives worth knowing (and why this one was chosen)</h2>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>One instance?</th>
+<th>Thread-safe?</th>
+<th>Lazy?</th>
+<th>Lock cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Eager <code>static final</code> field</td>
+<td>yes</td>
+<td>yes (class-init is safe)</td>
+<td><strong>no</strong></td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>synchronized</code> whole method</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td><strong>every call</strong></td>
+</tr>
+<tr>
+<td><strong>Double-checked locking (this code)</strong></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td><strong>once</strong></td>
+</tr>
+<tr>
+<td>Initialization-on-demand holder (static nested class)</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>enum</code> singleton</td>
+<td>yes</td>
+<td>yes</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>This module demonstrates <strong>double-checked locking</strong> specifically because it is the classic teaching example for <em>why</em> <code>volatile</code> and a dedicated lock are needed. In production, the <em>holder idiom</em> or an <code>enum</code> are often simpler and just as safe — but they hide the memory-model lesson that DCL makes explicit.</p>
+<blockquote>
+<p>Note: <code>SpringApplication.run(...)</code> in <code>main</code> just boots a Spring context; it is unrelated to the pattern. The singleton here is managed manually (classic GoF), <strong>not</strong> by Spring's container. A Spring <code>@Component</code>/<code>@Bean</code> is already a singleton within its context, but that is a different, framework-managed mechanism.</p>
+</blockquote>
+</body>
+</html>

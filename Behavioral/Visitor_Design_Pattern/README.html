@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Visitor Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="visitor-design-pattern">Visitor Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Separate an <strong>operation</strong> from the <strong>object structure</strong> it works on, so you can add new operations without modifying the objects. Instead of putting every operation inside the element classes, you put each operation in its own <strong>visitor</strong> class, and the elements simply "accept" a visitor and hand themselves back to it.</p>
+<p>Here the object structure is a set of <strong>employee types</strong> (full-time, contract, intern), and the operations are things you might <em>do</em> to an employee — compute a <strong>tax report</strong> or a <strong>performance report</strong>. Adding a brand-new operation (say, a bonus calculator) means writing one new visitor class and touching <strong>none</strong> of the employee classes.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code> &lt;&lt;interface&gt;&gt; IEmployeeElement        &lt;&lt;interface&gt;&gt; IEmployeeVisitors
+ | +accept(IEmployeeVisitors) |        | +visit(InternEmployee)     |
+     ^         ^         ^             | +visit(FullTimeEmployee)   |
+     |         |         |             | +visit(ContractEmployee)   |
+ FullTime  Contract   Intern               ^                ^
+ Employee  Employee   Employee             |                |
+     |          |         |          TaxVisitor   PerformanceReportVisitor
+     +---- accept(v){ v.visit(this); } ----+
+     DOUBLE DISPATCH: element type + visitor type pick the method
+</code></pre>
+<hr />
+<h2 id="the-players">The players</h2>
+<pre><code>elements/IEmployeeElement                       the element contract: accept(visitor)
+elements/concrets/FullTimeEmployee              concrete elements — each just calls visitor.visit(this)
+                 /ContractEmployee
+                 /InternEmployee
+
+visitors/IEmployeeVisitors                       the visitor contract: one visit(...) per element type
+visitors/concrets/TaxVisitor                     operation #1 — tax report per employee type
+                 /PerformanceReportVisitor        operation #2 — performance report per employee type
+
+VisitorDesignPattern                             the demo — an intern accepts a TaxVisitor
+</code></pre>
+<p>Two separate hierarchies that meet in the middle:</p>
+<ul>
+<li><strong>Elements</strong> = the data (employee types).</li>
+<li><strong>Visitors</strong> = the operations (reports).</li>
+</ul>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="iemployeeelement-the-element-contract"><code>IEmployeeElement</code> — the element contract</h3>
+<pre><code class="language-java">public interface IEmployeeElement {
+    void accept(IEmployeeVisitors visitor);
+}
+</code></pre>
+<ul>
+<li>One method: <strong><code>accept(visitor)</code></strong>. It means "a visitor has arrived — let it operate on me." Every employee type must implement it.</li>
+<li>Crucially, the element doesn't <em>do</em> the operation itself; it just <strong>admits</strong> a visitor. What actually happens is decided by the visitor plus the element's concrete type (that's the double dispatch, explained below).</li>
+</ul>
+<h3 id="the-concrete-elements">The concrete elements</h3>
+<pre><code class="language-java">public class FullTimeEmployee implements IEmployeeElement {
+    @Override public void accept(IEmployeeVisitors visitor) { visitor.visit(this); }
+}
+public class ContractEmployee implements IEmployeeElement {
+    @Override public void accept(IEmployeeVisitors visitor) { visitor.visit(this); }
+}
+public class InternEmployee implements IEmployeeElement {
+    @Override public void accept(IEmployeeVisitors visitor) { visitor.visit(this); }
+}
+</code></pre>
+<ul>
+<li>Every element's <code>accept</code> body is the <strong>same single line</strong>: <code>visitor.visit(this)</code>. But that one line is the linchpin of the whole pattern.</li>
+<li>The word <strong><code>this</code></strong> is what matters. Inside <code>FullTimeEmployee.accept</code>, <code>this</code> has the <em>static type</em> <code>FullTimeEmployee</code>, so the compiler selects the <code>visit(FullTimeEmployee)</code> overload. Inside <code>InternEmployee.accept</code>, <code>this</code> is an <code>InternEmployee</code>, so <code>visit(InternEmployee)</code> is selected. The element "knows its own type" and uses that to pick the correct overload on the visitor.</li>
+<li>Note the code is identical across the three classes but <strong>not redundant</strong>: each <code>this</code> refers to a different type, so each routes to a different visitor method. You cannot collapse these into one shared method — the type of <code>this</code> is exactly the information being exploited.</li>
+</ul>
+<h3 id="iemployeevisitors-the-visitor-contract"><code>IEmployeeVisitors</code> — the visitor contract</h3>
+<pre><code class="language-java">public interface IEmployeeVisitors {
+    void visit(InternEmployee internEmployee);
+    void visit(FullTimeEmployee fullTimeEmployee);
+    void visit(ContractEmployee contractEmployee);
+}
+</code></pre>
+<ul>
+<li><strong>One overloaded <code>visit(...)</code> method per concrete element type.</strong> This is the visitor's side of the contract: "I promise to know what to do with every kind of employee."</li>
+<li>This is also the pattern's main trade-off in plain sight: the visitor interface <strong>lists every element type</strong>. Add a new employee type and you must add a <code>visit(...)</code> here (and in every visitor). Add a new <em>operation</em> and you just write a new class. (See <em>Why the trade-off</em> below.)</li>
+</ul>
+<h3 id="the-concrete-visitors-the-actual-operations">The concrete visitors — the actual operations</h3>
+<pre><code class="language-java">public class TaxVisitor implements IEmployeeVisitors {
+    @Override public void visit(FullTimeEmployee employee) { System.out.println(&quot;Generating tax report for full-time employee.&quot;); }
+    @Override public void visit(ContractEmployee employee) { System.out.println(&quot;Generating tax report for contract employee.&quot;); }
+    @Override public void visit(InternEmployee internEmployee) { System.out.println(&quot;Generating tax report for intern employee.&quot;); }
+}
+</code></pre>
+<ul>
+<li><code>TaxVisitor</code> bundles the <strong>tax</strong> behavior for <em>all three</em> employee types in one place. <code>PerformanceReportVisitor</code> does the same for <strong>performance reports</strong>.</li>
+<li>This is the payoff: everything about "computing tax" lives in one class, instead of being scattered as a <code>computeTax()</code> method spread across <code>FullTimeEmployee</code>, <code>ContractEmployee</code>, and <code>InternEmployee</code>. Related operation logic is <strong>cohesive</strong>.</li>
+<li>(Small note: in this module <code>PerformanceReportVisitor</code> is declared package-private — <code>class PerformanceReportVisitor</code> without <code>public</code> — while <code>TaxVisitor</code> is <code>public</code>. The demo only exercises <code>TaxVisitor</code>; making the other <code>public</code> would let it be used from other packages too. This is a visibility detail, not part of the pattern.)</li>
+</ul>
+<h3 id="visitordesignpattern-the-demo"><code>VisitorDesignPattern</code> — the demo</h3>
+<pre><code class="language-java">IEmployeeElement iternEmployee = new InternEmployee();
+iternEmployee.accept(new TaxVisitor());
+</code></pre>
+<ul>
+<li>Create an <code>InternEmployee</code>, referenced through the element interface.</li>
+<li>Hand it a <code>TaxVisitor</code> via <code>accept(...)</code>. Two dispatches then happen (below), and the result is: <strong>"Generating tax report for intern employee."</strong></li>
+<li>To run a <em>different</em> operation on the same employee, pass a different visitor: <code>iternEmployee.accept(new PerformanceReportVisitor())</code>. The <code>InternEmployee</code> class doesn't change at all.</li>
+</ul>
+<hr />
+<h2 id="the-core-idea-double-dispatch-this-is-the-reason-visitor-exists">The core idea: double dispatch (this is <em>the</em> reason Visitor exists)</h2>
+<p>Java's method calls are <strong>single dispatch</strong>: the method that runs is chosen by the runtime type of <strong>one</strong> object — the receiver before the dot. Overloads like <code>visit(FullTimeEmployee)</code> vs. <code>visit(InternEmployee)</code>, on the other hand, are resolved by the compiler using the <strong>static (declared)</strong> type of the argument, at compile time.</p>
+<p>That combination is a problem. If you tried to skip <code>accept</code> and write:</p>
+<pre><code class="language-java">IEmployeeElement e = new InternEmployee();
+IEmployeeVisitors v = new TaxVisitor();
+v.visit(e);   // ❌ won't compile — there is no visit(IEmployeeElement)
+</code></pre>
+<p>…it fails, because the compiler only knows <code>e</code> as <code>IEmployeeElement</code> and there's no overload for that type. Even if there were, it couldn't pick the <em>intern-specific</em> one, because it doesn't know at compile time that <code>e</code> is really an <code>InternEmployee</code>.</p>
+<p>Visitor solves this with <strong>two dispatches</strong>:</p>
+<ol>
+<li><strong>First dispatch — <code>element.accept(visitor)</code>.</strong> This is a normal virtual call on the <em>element</em>. The runtime picks the right <code>accept</code> based on the element's actual type (<code>InternEmployee.accept</code>). Now, inside that method, we are in a context where the concrete type is <em>known</em>.</li>
+<li><strong>Second dispatch — <code>visitor.visit(this)</code>.</strong> This is a virtual call on the <em>visitor</em>, and because <code>this</code> is statically typed as <code>InternEmployee</code> here, the compiler binds it to the <code>visit(InternEmployee)</code> overload. At runtime the virtual call selects the concrete visitor (<code>TaxVisitor</code>).</li>
+</ol>
+<p>So the <em>combination of the element's real type and the visitor's real type</em> selects the exact method — <code>TaxVisitor.visit(InternEmployee)</code>. That two-step "bounce" (<code>accept</code> → <code>visit(this)</code>) is <strong>double dispatch</strong>, and it is the entire mechanical reason the pattern is shaped the way it is.</p>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-not-just-put-computetax-generatereport-methods-on-the-employees">Why not just put <code>computeTax()</code> / <code>generateReport()</code> methods on the employees?</h3>
+<p>You could — but then <strong>every operation is smeared across every element class</strong>, and each new operation forces you to edit <em>all</em> the employee classes. Worse, operations that don't really belong to "being an employee" (tax rules, report formatting) pollute the data classes. Visitor <strong>pulls each operation out into its own class</strong>, so a <code>TaxVisitor</code> holds all tax logic for all employee types in one cohesive place, and the employee classes stay clean and stable.</p>
+<h3 id="why-the-accept-visitthis-indirection-at-all">Why the <code>accept</code> / <code>visit(this)</code> indirection at all?</h3>
+<p>Purely to achieve double dispatch (above). It's the only way in a single-dispatch language like Java to let <em>two</em> runtime types jointly decide which method runs. The <code>accept</code> method exists solely to recover the element's concrete type and forward it to the correctly-typed <code>visit</code> overload.</p>
+<h3 id="why-one-visit-overload-per-element-type">Why one <code>visit(...)</code> overload per element type?</h3>
+<p>So each visitor is forced (by the compiler) to handle <strong>every</strong> kind of element. If you add <code>visit(FreelancerEmployee)</code> to the interface, every existing visitor stops compiling until it provides that behavior — which is a <em>feature</em>: you can't accidentally forget to define how tax works for a new employee type.</p>
+<h3 id="the-fundamental-trade-off-know-this-cold">The fundamental trade-off (know this cold)</h3>
+<p>Visitor makes one axis easy and the other hard:</p>
+<ul>
+<li>✅ <strong>Adding a new operation is trivial</strong> — write one new visitor class (e.g. <code>BonusVisitor</code>), change nothing else. This is exactly why Visitor is chosen when operations change often but the set of element types is stable.</li>
+<li>❌ <strong>Adding a new element type is expensive</strong> — a new <code>IEmployeeElement</code> means adding a <code>visit(...)</code> method to the visitor interface <em>and</em> implementing it in <strong>every</strong> existing visitor.</li>
+</ul>
+<p>If your element types churn more than your operations, Visitor is the <em>wrong</em> pattern (you'd prefer methods on the elements). Pick Visitor when the <strong>element hierarchy is stable</strong> and you keep needing <strong>new operations</strong> over it.</p>
+<hr />
+<h2 id="execution-flow-the-demo">Execution flow (the demo)</h2>
+<pre><code>main
+ │
+ ├── new InternEmployee()          element, typed as IEmployeeElement
+ ├── new TaxVisitor()              the operation to apply
+ │
+ └── internEmployee.accept( taxVisitor )
+          │  ── 1st dispatch: virtual call picks InternEmployee.accept  (element's real type)
+          ▼
+      InternEmployee.accept(visitor) { visitor.visit(this); }
+          │  ── this is statically an InternEmployee → compiler binds visit(InternEmployee)
+          │  ── 2nd dispatch: virtual call picks TaxVisitor              (visitor's real type)
+          ▼
+      TaxVisitor.visit(InternEmployee)
+          └── prints &quot;Generating tax report for intern employee.&quot;
+</code></pre>
+<p><strong>Console output:</strong></p>
+<pre><code>Visitor Design Pattern
+Generating tax report for intern employee.
+</code></pre>
+<p>Swap the visitor, same element:</p>
+<pre><code>internEmployee.accept(new PerformanceReportVisitor())
+   → &quot;Generating performance report for intern employee.&quot;
+</code></pre>
+<p>Swap the element, same visitor:</p>
+<pre><code>new FullTimeEmployee().accept(new TaxVisitor())
+   → &quot;Generating tax report for full-time employee.&quot;
+</code></pre>
+<p>The right method is always chosen by the <strong>pair</strong> of concrete types.</p>
+<hr />
+<h2 id="notes-possible-extensions-not-changed-in-the-code">Notes / possible extensions (not changed in the code)</h2>
+<ul>
+<li><strong>Elements carry no data here.</strong> <code>FullTimeEmployee</code> etc. are empty. In a real system they'd hold fields (salary, hours), and the visitor's <code>visit(...)</code> would read them via getters to compute an actual number. The demo keeps them empty to spotlight the dispatch mechanism.</li>
+<li><strong>Visitors can accumulate state.</strong> A visitor is a great place to gather results while traversing many elements (e.g. a running <code>totalTax</code>), because it visits each element and can keep fields between visits.</li>
+<li><strong>Plain <code>main</code>, no Spring</strong> — the pattern is pure OO structure and needs no container.</li>
+</ul>
+<hr />
+<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<ul>
+<li><strong>Visitor (this module)</strong> — add <strong>operations</strong> over a fixed set of element types without changing them; relies on double dispatch.</li>
+<li><strong>Strategy</strong> — swap <strong>one</strong> algorithm on a single object; no traversal of a type hierarchy.</li>
+<li><strong>Template Method</strong> — fix an algorithm's skeleton, vary steps via inheritance.</li>
+<li><strong>Chain of Responsibility</strong> — pass a request along handlers until one handles it.</li>
+</ul>
+<p>Reach for Visitor when you have a <strong>stable hierarchy of types</strong> and an <strong>open-ended, growing set of operations</strong> you want to run over them — and you'd rather add operations as new classes than keep editing the types.</p>
+</body>
+</html>

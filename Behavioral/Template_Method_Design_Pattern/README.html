@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Template Method Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="template-method-design-pattern">Template Method Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Define the <strong>skeleton of an algorithm</strong> in a base class, but let subclasses fill in <strong>specific steps</strong> without changing the algorithm's overall structure or order. The "template" is a method that lays out the fixed sequence of steps; some steps are implemented once in the base class, others are left for subclasses to override.</p>
+<p>Here the algorithm is <strong>making a hot beverage</strong>: boil water → brew → pour into cup → add condiments. The <em>order</em> is fixed for every beverage, but <em>brewing</em> and <em>condiments</em> differ between coffee and tea.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code>        &lt;&lt;abstract&gt;&gt; BeverageMaker
+        +--------------------------------+
+        | +makeBeverage() {final}  &lt;-- TEMPLATE: fixed order
+        |    boilWater()  (concrete)     |
+        |    brew()       (abstract)     |
+        |    pourInCup()  (concrete)     |
+        |    addCondiments() (abstract)  |
+        +--------^-------------^---------+
+                 |             |
+           CoffeeMaker      TeaMaker
+           drip + sugar/milk  steep + lemon
+</code></pre>
+<hr />
+<h2 id="the-players">The players</h2>
+<pre><code>template/BeverageMaker                    abstract base: holds the template method + steps
+template/concrets/CoffeeMaker             fills in brew()/addCondiments() the coffee way
+template/concrets/TeaMaker                fills in brew()/addCondiments() the tea way
+
+TemplateMethodDesignPattern               the demo — makes a coffee, then a tea
+</code></pre>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="beveragemaker-the-abstract-base-with-the-template"><code>BeverageMaker</code> — the abstract base with the template</h3>
+<pre><code class="language-java">public abstract class BeverageMaker {
+
+    public final void makeBeverage() {
+        boilWater();
+        brew();
+        pourInCup();
+        addCondiments();
+    }
+
+    public abstract void brew();
+    public abstract void addCondiments();
+
+    void boilWater()  { System.out.println(&quot;Boiling water&quot;); }
+    void pourInCup()  { System.out.println(&quot;Pouring into cup&quot;); }
+}
+</code></pre>
+<p>This one class contains the entire pattern. Four kinds of members, each with a distinct role:</p>
+<ul>
+<li><strong><code>public final void makeBeverage()</code> — the <em>template method</em>.</strong> This is the algorithm skeleton. It calls the four steps <strong>in a fixed order</strong>. It is <code>final</code> on purpose (see <em>Why <code>final</code></em> below): subclasses can change the individual steps but <strong>cannot</strong> change the recipe's structure or sequence.</li>
+<li><strong><code>public abstract void brew();</code> / <code>public abstract void addCondiments();</code> — the <em>primitive operations</em>.</strong> These are the steps that vary per beverage. They are <code>abstract</code>, so <code>BeverageMaker</code> refuses to say how they work and <strong>forces</strong> every subclass to supply its own version.</li>
+<li><strong><code>boilWater()</code> / <code>pourInCup()</code> — the <em>concrete (invariant) steps</em>.</strong> These are identical for every beverage, so the base class implements them <strong>once</strong> and shares them with all subclasses. No subclass needs to (or should) reimplement them.</li>
+</ul>
+<p>So <code>makeBeverage()</code> is a mix: it orchestrates two shared steps and two subclass-supplied steps into one unchangeable sequence.</p>
+<h3 id="coffeemaker-one-concrete-implementation"><code>CoffeeMaker</code> — one concrete implementation</h3>
+<pre><code class="language-java">public class CoffeeMaker extends BeverageMaker {
+
+    @Override public void brew()          { System.out.println(&quot;Dripping coffee through filter&quot;); }
+    @Override public void addCondiments() { System.out.println(&quot;Adding sugar and milk&quot;); }
+}
+</code></pre>
+<ul>
+<li>Extends <code>BeverageMaker</code> and supplies <strong>only</strong> the two varying steps. It says nothing about boiling water, pouring, or the <em>order</em> — all of that is inherited from the template.</li>
+<li>Notice there is <strong>no <code>makeBeverage()</code> here.</strong> The subclass provides <em>ingredients for steps</em>, not the algorithm. That inversion is the whole point.</li>
+</ul>
+<h3 id="teamaker-the-other-implementation"><code>TeaMaker</code> — the other implementation</h3>
+<pre><code class="language-java">public class TeaMaker extends BeverageMaker {
+
+    @Override public void brew()          { System.out.println(&quot;Steeping the tea&quot;); }
+    @Override public void addCondiments() { System.out.println(&quot;Adding lemon&quot;); }
+}
+</code></pre>
+<ul>
+<li>Same deal, different fillings: steep instead of drip, lemon instead of sugar-and-milk. The skeleton it runs is byte-for-byte the same one <code>CoffeeMaker</code> runs.</li>
+</ul>
+<h3 id="templatemethoddesignpattern-the-demo"><code>TemplateMethodDesignPattern</code> — the demo</h3>
+<pre><code class="language-java">BeverageMaker coffeeMaker = new CoffeeMaker();
+coffeeMaker.makeBeverage();
+
+BeverageMaker teaMaker = new TeaMaker();
+teaMaker.makeBeverage();
+</code></pre>
+<ul>
+<li>Both are referenced through the <strong>base type</strong> <code>BeverageMaker</code>. The caller invokes the <strong>same</strong> method, <code>makeBeverage()</code>, on both.</li>
+<li>What differs at runtime is decided by <strong>polymorphism</strong>: when <code>makeBeverage()</code> reaches <code>brew()</code>, Java dispatches to the actual object's override (<code>CoffeeMaker.brew()</code> or <code>TeaMaker.brew()</code>). The caller never calls <code>brew()</code> itself — the template calls it for you.</li>
+</ul>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-put-the-algorithm-in-the-base-class-instead-of-each-subclass">Why put the algorithm in the base class instead of each subclass?</h3>
+<p>Because the <strong>order and structure are the part that must not vary.</strong> Every beverage is made by the same four-step recipe in the same sequence. If each subclass wrote its own <code>makeBeverage()</code>, the shared sequence would be <strong>duplicated</strong> across all of them, and any subclass could accidentally get the order wrong (pour before brewing) or forget a step. Centralizing the skeleton in one place means the recipe is defined <strong>once</strong> and reused. This is the pattern's core benefit: <em>code reuse of the algorithm's structure.</em></p>
+<h3 id="why-is-the-template-method-final">Why is the template method <code>final</code>?</h3>
+<p><code>final</code> prevents subclasses from overriding <code>makeBeverage()</code>. That's deliberate: the base class is saying <strong>"you may customize the steps, but you may not rewrite the recipe."</strong> Without <code>final</code>, a subclass could override the template and change the order, skip <code>boilWater()</code>, or otherwise break the invariant that the pattern is meant to protect. Making it <code>final</code> locks in the algorithm's shape while still allowing per-step variation through the abstract methods.</p>
+<h3 id="why-are-brew-and-addcondiments-abstract">Why are <code>brew()</code> and <code>addCondiments()</code> <code>abstract</code>?</h3>
+<p>Because they are the steps that genuinely differ and for which the base class has <strong>no sensible default</strong>. Declaring them <code>abstract</code>:<br />
+1. <strong>Forces</strong> every subclass to provide them — you literally cannot compile a concrete <code>BeverageMaker</code> that forgets to define <code>brew()</code>. The compiler enforces the contract.<br />
+2. Documents exactly which steps are the customization points.</p>
+<h3 id="why-are-boilwater-and-pourincup-concrete-and-not-abstract">Why are <code>boilWater()</code> and <code>pourInCup()</code> concrete (and not abstract)?</h3>
+<p>Because they are <strong>invariant</strong> — the same for every beverage. Implementing them in the base class shares the code and signals "don't touch these." (They have package-private visibility here, which is enough for the template method in the same class to call them; they aren't part of the public customization surface.)</p>
+<h3 id="why-is-this-called-inversion-of-control-the-hollywood-principle">Why is this called "inversion of control" / "the Hollywood Principle"?</h3>
+<p>Note who calls whom. The subclass does <strong>not</strong> call the base class to run the algorithm; instead the base class's template method calls <strong>down</strong> into the subclass's overridden steps at the right moments — <em>"Don't call us, we'll call you."</em> The high-level flow stays in the base class; the low-level details are supplied by subclasses and invoked <em>by</em> the framework method. This is the opposite of the usual "my code calls a library" direction, and it's exactly what lets the base class guarantee the order.</p>
+<h3 id="template-method-vs-strategy-they-solve-the-same-varying-behavior-problem-differently">Template Method vs. Strategy (they solve the same varying-behavior problem differently)</h3>
+<ul>
+<li><strong>Template Method (this module)</strong> varies steps via <strong>inheritance</strong> — subclasses override abstract methods, and the algorithm skeleton is fixed at compile time in the base class.</li>
+<li><strong>Strategy</strong> varies the whole algorithm via <strong>composition</strong> — you inject a different strategy object at runtime.</li>
+</ul>
+<p>Template Method is the right choice when the <em>overall sequence</em> is fixed and only <em>specific steps</em> change; Strategy is better when the <em>entire</em> algorithm should be swappable and you want to change it at runtime.</p>
+<hr />
+<h2 id="execution-flow-the-demo">Execution flow (the demo)</h2>
+<pre><code>main
+ │
+ ├── new CoffeeMaker()  (as BeverageMaker)
+ │      └── makeBeverage()          ← the template method (defined once, in the base)
+ │             ├── boilWater()      → &quot;Boiling water&quot;                  (base class)
+ │             ├── brew()           → &quot;Dripping coffee through filter&quot; (CoffeeMaker override)
+ │             ├── pourInCup()      → &quot;Pouring into cup&quot;               (base class)
+ │             └── addCondiments()  → &quot;Adding sugar and milk&quot;          (CoffeeMaker override)
+ │
+ └── new TeaMaker()  (as BeverageMaker)
+        └── makeBeverage()          ← the SAME template method
+               ├── boilWater()      → &quot;Boiling water&quot;                  (base class)
+               ├── brew()           → &quot;Steeping the tea&quot;              (TeaMaker override)
+               ├── pourInCup()      → &quot;Pouring into cup&quot;               (base class)
+               └── addCondiments()  → &quot;Adding lemon&quot;                   (TeaMaker override)
+</code></pre>
+<p><strong>Console output:</strong></p>
+<pre><code>Template Method Design Pattern
+-----Its time to make coffee.
+Boiling water
+Dripping coffee through filter
+Pouring into cup
+Adding sugar and milk
+-----Now its time to make tea.
+Boiling water
+Steeping the tea
+Pouring into cup
+Adding lemon
+</code></pre>
+<p>Notice: the <strong>first and third lines of each beverage are identical</strong> (the shared steps), while the <strong>second and fourth differ</strong> (the overridden steps) — and the <strong>order is always the same</strong>. That is Template Method working exactly as intended.</p>
+<hr />
+<h2 id="notes-possible-extensions-not-changed-in-the-code">Notes / possible extensions (not changed in the code)</h2>
+<ul>
+<li><strong>Hook methods.</strong> A common Template Method addition is a <em>hook</em>: a non-abstract method with an empty or default body that subclasses <em>may</em> override to optionally influence the flow (e.g. <code>boolean customerWantsCondiments()</code> guarding the <code>addCondiments()</code> call). This module keeps it to the two required steps for clarity.</li>
+<li><strong>Plain <code>main</code>, no Spring.</strong> Like the other pure-behavioral demos here, this one runs from a plain <code>main</code> — the pattern is about class structure and needs no container.</li>
+</ul>
+<hr />
+<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<ul>
+<li><strong>Template Method (this module)</strong> — fixed algorithm skeleton, subclasses fill in steps (inheritance).</li>
+<li><strong>Strategy</strong> — swap the whole algorithm at runtime (composition).</li>
+<li><strong>Chain of Responsibility</strong> — pass a request along handlers until one handles it.</li>
+</ul>
+<p>Reach for Template Method when several classes share the <strong>same overall procedure</strong> but differ in a <strong>few specific steps</strong>, and you want to guarantee the procedure's order while eliminating duplicated structure.</p>
+</body>
+</html>

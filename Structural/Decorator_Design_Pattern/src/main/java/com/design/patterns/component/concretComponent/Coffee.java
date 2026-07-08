@@ -11,7 +11,6 @@ public class Coffee extends Beverage {
 
 	@Override
 	public void decorateBeverage() {
-		// TODO Auto-generated method stub
 		System.out.println("The cost of " + name + ":" + price);
 	}
 

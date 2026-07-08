@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Interpreter Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="interpreter-design-pattern">Interpreter Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Given a simple "language" (a grammar), define a <strong>class per grammar rule</strong> and an <code>interpret()</code> operation that evaluates sentences written in that language. You represent a sentence as an <strong>abstract syntax tree (AST)</strong> of expression objects, then evaluate it by asking the tree to interpret itself.</p>
+<p>Here the little language is <strong>integer arithmetic with <code>+</code> and <code>-</code></strong>. A string like <code>"5 + 3 - 2"</code> is turned into a tree of expression objects and evaluated to <code>6</code>.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code>      &lt;&lt;interface&gt;&gt; IExpression
+      | +interpret() : int |
+        ^        ^        ^
+        |        |        |
+ NumberExpression AddExpression SubstractExpression
+ (terminal/leaf)  | left,right | | left,right |
+                  +--&gt; left.interpret() + right.interpret()
+ Context.parseExpression(&quot;5 + 3 - 2&quot;)
+   -&gt; Substract( Add(Num 5, Num 3), Num 2 ) -&gt; interpret() = 6
+</code></pre>
+<hr />
+<h2 id="the-players">The players</h2>
+<pre><code>expressions/IExpression                          the grammar contract: interpret() → int
+expressions/terminal/NumberExpression            TERMINAL rule     — a literal number (a leaf)
+expressions/nonterminal/AddExpression            NON-TERMINAL rule — left + right
+                       /SubstractExpression       NON-TERMINAL rule — left - right
+context/Context                                  parses a string into an expression tree
+
+InterpreterDesignPattern                         the demo — parse &quot;5 + 3 - 2&quot;, interpret it
+</code></pre>
+<p>Two kinds of grammar rules, straight out of the pattern:</p>
+<ul>
+<li><strong>Terminal expression</strong> — an atom that evaluates by itself (<code>NumberExpression</code>). It's a leaf of the tree.</li>
+<li><strong>Non-terminal expression</strong> — a rule built out of <em>other</em> expressions (<code>AddExpression</code>, <code>SubstractExpression</code>). It's an internal node with children.</li>
+</ul>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="iexpression-the-grammar-contract"><code>IExpression</code> — the grammar contract</h3>
+<pre><code class="language-java">public interface IExpression {
+    int interpret();
+}
+</code></pre>
+<ul>
+<li>One method: <strong><code>interpret()</code></strong> returns the <code>int</code> value of this expression. Every node in the tree — leaf or internal — implements it.</li>
+<li>This uniform interface is what lets a non-terminal treat its children abstractly: an <code>AddExpression</code> just calls <code>interpret()</code> on its left and right, never caring whether they're numbers or nested sub-expressions.</li>
+</ul>
+<h3 id="numberexpression-the-terminal-rule"><code>NumberExpression</code> — the terminal rule</h3>
+<pre><code class="language-java">public class NumberExpression implements IExpression {
+
+    private int number;
+
+    public NumberExpression(int number) { this.number = number; }
+
+    @Override
+    public int interpret() { return number; }
+}
+</code></pre>
+<ul>
+<li>Wraps a single literal integer. Its <code>interpret()</code> is the <strong>base case</strong> of the recursion: it just returns its own value, with no further calls.</li>
+<li>These are the <strong>leaves</strong> of the AST — the recursion bottoms out here.</li>
+</ul>
+<h3 id="addexpression-substractexpression-the-non-terminal-rules"><code>AddExpression</code> / <code>SubstractExpression</code> — the non-terminal rules</h3>
+<pre><code class="language-java">public class AddExpression implements IExpression {
+
+    private IExpression leftExpression;
+    private IExpression rightExpression;
+
+    public AddExpression(IExpression leftExpression, IExpression rightExpression) {
+        this.leftExpression  = leftExpression;
+        this.rightExpression = rightExpression;
+    }
+
+    @Override
+    public int interpret() {
+        return leftExpression.interpret() + rightExpression.interpret();
+    }
+}
+</code></pre>
+<ul>
+<li>Each holds <strong>two child <code>IExpression</code>s</strong> (typed as the interface, so a child can be a number <em>or</em> another whole sub-tree).</li>
+<li><strong><code>interpret()</code> is recursive:</strong> it evaluates its left child, evaluates its right child, and combines them (<code>+</code> here, <code>-</code> in <code>SubstractExpression</code>). This is the <strong>composite recursion</strong> that walks the tree — an internal node's value is defined in terms of its children's values.</li>
+<li><code>SubstractExpression</code> is identical except it returns <code>left - right</code>.</li>
+</ul>
+<h3 id="context-turning-a-string-into-a-tree-the-parser"><code>Context</code> — turning a string into a tree (the parser)</h3>
+<pre><code class="language-java">public IExpression parseExpression(String expression) {
+    String[] tokens = expression.split(&quot; &quot;);
+    IExpression result = new NumberExpression(Integer.parseInt(tokens[0]));
+    for (int i = 1; i &lt; tokens.length - 1; i += 2) {
+        String operator = tokens[i];
+        IExpression right = new NumberExpression(Integer.parseInt(tokens[i + 1]));
+        if (operator.equals(&quot;+&quot;)) {
+            result = new AddExpression(result, right);
+        } else if (operator.equals(&quot;-&quot;)) {
+            result = new SubstractExpression(result, right);
+        }
+    }
+    return result;
+}
+</code></pre>
+<ul>
+<li><strong><code>split(" ")</code></strong> breaks <code>"5 + 3 - 2"</code> into tokens <code>["5", "+", "3", "-", "2"]</code>. (This tiny "lexer" assumes single-space separation.)</li>
+<li><strong><code>result</code> starts as the first number</strong> — <code>NumberExpression(5)</code>.</li>
+<li><strong>The loop walks the rest in <code>(operator, number)</code> pairs</strong> (<code>i += 2</code>): it reads an operator and the number after it, then <strong>wraps the running <code>result</code></strong> as the left child and the new number as the right child. So the tree grows left-deep:</li>
+<li>after <code>+ 3</code>: <code>result = Add( Number(5), Number(3) )</code></li>
+<li>after <code>- 2</code>: <code>result = Substract( Add(Number(5),Number(3)), Number(2) )</code></li>
+<li><strong><code>i &lt; tokens.length - 1</code></strong> stops one short so <code>tokens[i + 1]</code> is always a valid operand — it never reads past the end.</li>
+<li>The returned <code>result</code> is the <strong>root</strong> of the AST. Nothing has been evaluated yet — parsing only <em>builds</em> the tree; <code>interpret()</code> evaluates it.</li>
+</ul>
+<h3 id="interpreterdesignpattern-the-demo"><code>InterpreterDesignPattern</code> — the demo</h3>
+<pre><code class="language-java">String inputExpression = &quot;5 + 3 - 2&quot;;
+
+Context context = new Context();
+IExpression expression = context.parseExpression(inputExpression);   // build the tree
+int result = expression.interpret();                                 // evaluate the tree
+
+System.out.println(&quot;Result: &quot; + result);                             // 6
+</code></pre>
+<ul>
+<li><strong>Two distinct phases:</strong> first <code>parseExpression</code> builds the AST, then <code>interpret()</code> evaluates it. This separation is the essence of the pattern — represent the sentence as objects, then run one operation over that representation.</li>
+<li><code>interpret()</code> on the root triggers the recursive cascade down to the leaves, producing <code>6</code>.</li>
+</ul>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-represent-the-expression-as-a-tree-of-objects-at-all">Why represent the expression as a tree of objects at all?</h3>
+<p>Because it turns "evaluate this string" into "walk this structure," and the structure mirrors the grammar exactly. Each grammar rule is one class; evaluating is just polymorphic recursion. Once the AST exists you can also do <em>other</em> things with it later (pretty-print it, optimize it, translate it) by adding new operations — the representation is reusable, a plain <code>eval(string)</code> function is not.</p>
+<h3 id="why-split-into-terminal-vs-non-terminal-expressions">Why split into terminal vs. non-terminal expressions?</h3>
+<p>That split <strong>is</strong> the grammar. A number is a terminal (it stands alone); an addition is a non-terminal (it's defined using other expressions). Modeling both as <code>IExpression</code> lets them nest arbitrarily — <code>AddExpression</code> doesn't know or care whether its children are literals or deep sub-trees, because they're all just <code>IExpression</code>s. That uniformity is what makes the recursion clean.</p>
+<h3 id="why-is-interpret-recursive-and-why-does-the-interface-make-that-possible">Why is <code>interpret()</code> recursive, and why does the interface make that possible?</h3>
+<p>A non-terminal's meaning depends on its parts, so evaluation is naturally recursive: to add, first evaluate the two operands (which may themselves be additions/subtractions). Typing the children as <code>IExpression</code> means each node calls <code>interpret()</code> on its children <strong>without a type check</strong> — the terminal case (<code>NumberExpression</code>) ends the recursion by returning a value directly. This is the same idea as the Composite pattern applied to grammar rules.</p>
+<h3 id="why-separate-parsing-context-from-interpreting-interpret">Why separate parsing (<code>Context</code>) from interpreting (<code>interpret()</code>)?</h3>
+<p>Two responsibilities: <strong>building</strong> the tree from text vs. <strong>evaluating</strong> the tree. Keeping them apart means the expression classes know nothing about string syntax (they'd work if you built the tree by hand, <code>new AddExpression(new NumberExpression(5), …)</code>), and the parser knows nothing about evaluation. You can change the input syntax without touching evaluation, and vice versa.</p>
+<h3 id="why-does-this-build-the-tree-left-to-right-and-what-was-wrong-before">Why does this build the tree <strong>left-to-right</strong> (and what was wrong before)?</h3>
+<p>For <code>+</code> and <code>-</code> — which have <strong>equal precedence and are left-associative</strong> — left-to-right nesting is exactly correct: <code>5 + 3 - 2</code> must mean <code>(5 + 3) - 2</code>, and the loop produces precisely that left-deep tree.</p>
+<blockquote>
+<p><strong>Bug that was fixed.</strong> The original <code>Context</code> used a <strong>stack that popped two operands per operator</strong> — that's a <em>postfix / Reverse-Polish</em> evaluator, e.g. for <code>"5 3 + 2 -"</code>. But the demo input is <strong>infix</strong> (<code>"5 + 3 - 2"</code>). On the first operator the stack had only one operand, so the second <code>pop()</code> threw <code>java.util.EmptyStackException</code> and the program crashed. The parser was rewritten to build the tree left-to-right from the infix input, so <code>"5 + 3 - 2"</code> now evaluates to <code>6</code>.</p>
+<p>Note this left-to-right approach is correct <strong>only</strong> because the language has just <code>+</code>/<code>-</code>. If you add <code>*</code> or <code>/</code>, it would ignore precedence (it'd compute <code>2 + 3 * 4</code> as <code>20</code>, not <code>14</code>) — you'd then need operator-precedence handling (e.g. the shunting-yard algorithm) or a recursive-descent parser.</p>
+</blockquote>
+<hr />
+<h2 id="execution-flow-the-demo-5-3-2">Execution flow (the demo — <code>"5 + 3 - 2"</code>)</h2>
+<p><strong>Phase 1 — parse (build the AST):</strong></p>
+<pre><code>tokens = [ &quot;5&quot;, &quot;+&quot;, &quot;3&quot;, &quot;-&quot;, &quot;2&quot; ]
+
+result = Number(5)
+ i=1:  &quot;+&quot; 3  →  result = Add( Number(5), Number(3) )
+ i=3:  &quot;-&quot; 2  →  result = Substract( Add(Number(5),Number(3)), Number(2) )
+
+returns the root:
+
+            Substract
+            /        \
+          Add        Number(2)
+         /    \
+   Number(5)  Number(3)
+</code></pre>
+<p><strong>Phase 2 — interpret (evaluate the AST):</strong></p>
+<pre><code>Substract.interpret()
+   ├── left  = Add.interpret()
+   │            ├── left  = Number(5).interpret() → 5
+   │            └── right = Number(3).interpret() → 3
+   │            └── returns 5 + 3 = 8
+   └── right = Number(2).interpret() → 2
+   └── returns 8 - 2 = 6
+</code></pre>
+<p><strong>Console output:</strong></p>
+<pre><code>Interpreter Design Pattern
+Evaluating Expression: 5 + 3 - 2
+Result: 6
+</code></pre>
+<hr />
+<h2 id="notes-possible-extensions-not-changed-in-the-code">Notes / possible extensions (not changed in the code)</h2>
+<ul>
+<li><strong>Adding a new operation is easy</strong> — e.g. <code>MultiplyExpression implements IExpression</code> with <code>left * right</code>, plus a <code>*</code> branch in the parser. That's the pattern's sweet spot: one new class per new grammar rule. (Precedence, as noted, is the extra work.)</li>
+<li><strong>The parser is deliberately minimal</strong> — it assumes well-formed, single-space-separated input and doesn't handle parentheses or validation. Interpreter is about <em>evaluating the tree</em>, not about industrial-strength parsing; real languages use a dedicated parser/lexer to build the AST and keep Interpreter for the evaluation step.</li>
+<li><strong>Plain <code>main</code>, no Spring</strong> — the pattern is pure OO structure and needs no container.</li>
+</ul>
+<hr />
+<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<ul>
+<li><strong>Interpreter (this module)</strong> — model a grammar as a class-per-rule tree and evaluate it recursively via <code>interpret()</code>.</li>
+<li><strong>Composite</strong> (structural) — Interpreter's AST <em>is</em> a Composite; the terminal/non-terminal split is leaf vs. composite node.</li>
+<li><strong>Visitor</strong> — often paired with Interpreter to add <em>many</em> operations over the AST (evaluate, print, type-check) without editing the expression classes.</li>
+<li><strong>Strategy / State</strong> — delegate to a single swapped-in object; Interpreter instead walks a whole structure of objects.</li>
+</ul>
+<p>Reach for Interpreter when you have a <strong>small, stable grammar</strong> you need to evaluate repeatedly (arithmetic, boolean rules, query filters, config mini-languages) and modeling each rule as a class keeps the evaluation clean and extensible. For large or fast-changing languages, a real parser generator is the better tool.</p>
+</body>
+</html>

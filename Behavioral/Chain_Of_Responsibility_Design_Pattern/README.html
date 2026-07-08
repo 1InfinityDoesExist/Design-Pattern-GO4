@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Chain Of Responsibility Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="chain-of-responsibility-design-pattern">Chain of Responsibility Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Decouple the <strong>sender</strong> of a request from its <strong>receiver</strong> by giving more than one object a chance to handle it. The request travels down a <strong>chain</strong> of handlers; each handler either deals with it or passes it to the next one. The sender doesn't know — and doesn't care — which handler ends up doing the work.</p>
+<p>Here the chain models a <strong>support desk</strong>: a request with a <code>Priority</code> is passed to Level 1 support, which either handles it or escalates to Level 2, which escalates to Level 3.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code>  &lt;&lt;interface&gt;&gt; ISupportHandler
+  +handleRequest(Request)
+  +setNextHandler(ISupportHandler)
+        ^            ^            ^
+        |            |            |
+ FirstLevel --&gt; SecondLevel --&gt; ThirdLevel   (terminal)
+  BASIC?           INTERMEDIATE?   CRITICAL? else &quot;cannot be handled&quot;
+    | no: forward     | no: forward
+ client -&gt; firstLevel.handleRequest(request)  (head only)
+</code></pre>
+<hr />
+<h2 id="the-players">The players</h2>
+<pre><code>request/Priority                          BASIC, INTERMEDIATE, CRITICAL
+request/Request                           the thing being passed along (carries a Priority)
+
+handler/ISupportHandler                   the handler contract: handleRequest + setNextHandler
+handler/impl/FirstLevelSupportHandler     handles BASIC,        else escalates
+handler/impl/SecondLevelSupportHandler    handles INTERMEDIATE, else escalates
+handler/impl/ThirdLevelSupportHandler     handles CRITICAL,     else &quot;cannot be handled&quot; (chain end)
+
+ChainOfResponsibilityDesignPattern        wires the chain and fires one request
+</code></pre>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="priority-the-request-classification"><code>Priority</code> — the request classification</h3>
+<pre><code class="language-java">public enum Priority {
+    BASIC, INTERMEDIATE, CRITICAL
+}
+</code></pre>
+<ul>
+<li>A simple enum that ranks a request. Each handler is responsible for exactly one priority level, so this enum is effectively the routing key that decides <em>who</em> handles a request.</li>
+</ul>
+<h3 id="request-the-message-travelling-the-chain"><code>Request</code> — the message travelling the chain</h3>
+<pre><code class="language-java">public class Request {
+    private Priority priority;
+
+    public Request(Priority priority) { this.priority = priority; }
+
+    public Priority getPriority() { return priority; }
+}
+</code></pre>
+<ul>
+<li>A small immutable-ish carrier holding the <code>priority</code>. This is the object handed from handler to handler unchanged. In a real system it would carry a payload (ticket text, user id, …); here <code>priority</code> alone is enough to demonstrate routing.</li>
+</ul>
+<h3 id="isupporthandler-the-handler-contract"><code>ISupportHandler</code> — the handler contract</h3>
+<pre><code class="language-java">public interface ISupportHandler {
+    void handleRequest(Request request);
+    void setNextHandler(ISupportHandler iSupportHandler);
+}
+</code></pre>
+<p>This is the <strong>essence of the pattern</strong>, and it is deliberately kept to just <strong>two</strong> methods:</p>
+<ul>
+<li><strong><code>handleRequest(Request)</code></strong> — "try to handle this; if you can't, pass it on." Every handler implements this.</li>
+<li><strong><code>setNextHandler(ISupportHandler)</code></strong> — lets you <strong>link</strong> one handler to the next, forming the chain. Because the successor is typed as the interface (not a concrete class), any handler can point to any other handler — the links are interchangeable.</li>
+</ul>
+<p>Keeping the interface this minimal is intentional (see <em>Why the interface is only two methods</em> below).</p>
+<h3 id="firstlevelsupporthandler"><code>FirstLevelSupportHandler</code></h3>
+<pre><code class="language-java">public class FirstLevelSupportHandler implements ISupportHandler {
+
+    private ISupportHandler nextSupportHandler;
+
+    @Override
+    public void handleRequest(Request request) {
+        if (request.getPriority() == Priority.BASIC) {
+            System.out.println(&quot;Level 1 Support handled the request.&quot;);
+        } else if (nextSupportHandler != null) {
+            System.out.println(&quot;-----Calling next handler ie.&quot; + nextSupportHandler.getClass().getName());
+            nextSupportHandler.handleRequest(request);
+        }
+    }
+
+    @Override
+    public void setNextHandler(ISupportHandler nextSupportHandler) {
+        this.nextSupportHandler = nextSupportHandler;
+    }
+}
+</code></pre>
+<ul>
+<li><strong><code>private ISupportHandler nextSupportHandler;</code></strong> — the link to the <em>next</em> handler in the chain. It's the interface type, so this handler has no idea what concrete class comes after it — that's the decoupling.</li>
+<li><strong><code>handleRequest</code></strong> implements the classic two-branch decision:</li>
+<li><strong>Can I handle it?</strong> <code>if (request.getPriority() == BASIC)</code> → yes, this is my level, print that Level 1 handled it. The request stops here.</li>
+<li><strong>Otherwise, pass it on</strong> — <code>else if (nextSupportHandler != null)</code> guards against being the end of the chain, prints a trace line showing who it's escalating to, then calls <code>nextSupportHandler.handleRequest(request)</code>, delegating the same request downstream.</li>
+<li><strong><code>setNextHandler</code></strong> just stores the successor.</li>
+</ul>
+<p><code>SecondLevelSupportHandler</code> is identical in shape, but its "can I handle it?" test is <code>Priority.INTERMEDIATE</code>.</p>
+<h3 id="thirdlevelsupporthandler-the-end-of-the-chain"><code>ThirdLevelSupportHandler</code> — the end of the chain</h3>
+<pre><code class="language-java">public class ThirdLevelSupportHandler implements ISupportHandler {
+
+    @Override
+    public void handleRequest(Request request) {
+        if (request.getPriority() == Priority.CRITICAL) {
+            System.out.println(&quot;Level 3 Support handled the request.&quot;);
+        } else {
+            System.out.println(&quot;Request cannot be handled.&quot;);
+        }
+    }
+
+    @Override
+    public void setNextHandler(ISupportHandler iSupportHandler) {
+    }
+}
+</code></pre>
+<p>Two things make this the <strong>terminal</strong> handler:</p>
+<ul>
+<li>It has <strong>no <code>nextSupportHandler</code> field</strong>, and its <code>setNextHandler(...)</code> body is <strong>empty</strong> — you cannot link anything after it. It is the last stop by construction.</li>
+<li>Its <code>else</code> branch prints <strong>"Request cannot be handled."</strong> instead of forwarding. This is the chain's fallback: if the request reaches the end and still nobody has claimed it, the chain reports failure rather than silently dropping it.</li>
+</ul>
+<h3 id="chainofresponsibilitydesignpattern-building-and-firing-the-chain"><code>ChainOfResponsibilityDesignPattern</code> — building and firing the chain</h3>
+<pre><code class="language-java">FirstLevelSupportHandler  firstLevelSupportHandler  = new FirstLevelSupportHandler();
+SecondLevelSupportHandler secondLevelSupportHandler = new SecondLevelSupportHandler();
+ThirdLevelSupportHandler  thirdLevelSupportHandler  = new ThirdLevelSupportHandler();
+
+firstLevelSupportHandler.setNextHandler(secondLevelSupportHandler);
+secondLevelSupportHandler.setNextHandler(thirdLevelSupportHandler);
+
+firstLevelSupportHandler.handleRequest(new Request(Priority.CRITICAL));
+</code></pre>
+<ul>
+<li><strong>Create</strong> the three handlers.</li>
+<li><strong>Link</strong> them: <code>first → second → third</code>. This is the "chain" — a singly linked list of handlers built at runtime.</li>
+<li><strong>Fire</strong> one request into the <strong>head</strong> of the chain (<code>firstLevelSupportHandler</code>). The sender only ever talks to the first handler; it has no idea a <code>CRITICAL</code> request will actually be resolved three hops later by Level 3.</li>
+</ul>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-chain-of-responsibility-at-all">Why Chain of Responsibility at all?</h3>
+<p>Without it, the sender would need a big conditional:</p>
+<pre><code class="language-java">if (priority == BASIC)             level1.handle();
+else if (priority == INTERMEDIATE) level2.handle();
+else if (priority == CRITICAL)     level3.handle();
+</code></pre>
+<p>That couples the sender to <strong>every</strong> handler and every routing rule. With the chain, the sender calls <strong>one</strong> method on <strong>one</strong> handler and the routing logic lives distributed across the handlers themselves. You can reorder, insert, or remove handlers without ever touching the sender.</p>
+<h3 id="why-the-interface-is-only-two-methods-handlerequest-setnexthandler">Why the interface is only two methods (<code>handleRequest</code> + <code>setNextHandler</code>)?</h3>
+<p>This is the smallest contract that still expresses the pattern: one method to <em>attempt/handle</em>, one to <em>link the successor</em>. Keeping it minimal means every handler is trivial to implement and any handler can be chained to any other. (This mirrors the deliberately-simple <code>SupportHandler { handleRequest; setNextHandler }</code> shape — no base class, no builder, no registry, just the two operations that define the pattern.)</p>
+<h3 id="why-does-each-handler-hold-a-reference-to-the-next-one-as-the-interface-type">Why does each handler hold a reference to the <em>next</em> one (as the interface type)?</h3>
+<p>So the chain is a runtime-configurable linked list. Typing the link as <code>ISupportHandler</code> (not a concrete class) is what decouples the handlers from one another — Level 1 forwards to "some next handler," never to "the Level 2 class specifically." That means you can rewire the order or swap implementations freely.</p>
+<h3 id="why-the-nextsupporthandler-null-check">Why the <code>nextSupportHandler != null</code> check?</h3>
+<p>It's the guard for "I'm not the last handler." A non-terminal handler that can't handle the request forwards it; but if it happens to be the tail (no successor set), the null check stops it from calling a method on <code>null</code>. The dedicated <code>ThirdLevelSupportHandler</code> makes the tail explicit, but the null guard keeps the general handlers safe regardless of where they sit.</p>
+<h3 id="why-a-distinct-terminal-handler-with-an-empty-setnexthandler">Why a distinct terminal handler with an empty <code>setNextHandler</code>?</h3>
+<p>To give the chain a <strong>guaranteed end</strong> and a <strong>fallback</strong>. <code>ThirdLevelSupportHandler</code> can't be linked further (empty setter, no field) and prints "Request cannot be handled." when nothing matches. Without a terminal fallback, an unmatched request would just fall off the end of the chain unnoticed — here it's reported.</p>
+<h3 id="why-send-the-request-only-to-the-first-handler">Why send the request only to the <em>first</em> handler?</h3>
+<p>That's the payoff of the pattern: the caller interacts with a single entry point and stays ignorant of the chain's length, order, and membership. The request propagates itself. In this demo a <code>CRITICAL</code> request enters at Level 1 and is resolved at Level 3 — and <code>main</code> never mentions Level 3 in the call that fires it.</p>
+<hr />
+<h2 id="execution-flow-the-demo-a-critical-request">Execution flow (the demo — a <code>CRITICAL</code> request)</h2>
+<pre><code>main
+ │  build chain:  first → second → third
+ │
+ └── firstLevelSupportHandler.handleRequest( Request(CRITICAL) )
+          │
+          │ priority == BASIC ?  no  → escalate
+          │ prints &quot;-----Calling next handler ie...SecondLevelSupportHandler&quot;
+          ▼
+      secondLevelSupportHandler.handleRequest( Request(CRITICAL) )
+          │
+          │ priority == INTERMEDIATE ?  no  → escalate
+          │ prints &quot;-----Calling next handler ie...ThirdLevelSupportHandler&quot;
+          ▼
+      thirdLevelSupportHandler.handleRequest( Request(CRITICAL) )
+          │
+          │ priority == CRITICAL ?  YES
+          └── prints &quot;Level 3 Support handled the request.&quot;   ← request consumed, chain stops
+</code></pre>
+<p><strong>Console output:</strong></p>
+<pre><code>Chain Of Responsibility Design Pattern
+-----Calling next handler ie.com.design.patterns.chainofresponsibility.handler.impl.SecondLevelSupportHandler
+-----Calling next handler ie.com.design.patterns.chainofresponsibility.handler.impl.ThirdLevelSupportHandler
+Level 3 Support handled the request.
+</code></pre>
+<p>Try other priorities to see the chain stop earlier:<br />
+- <code>Priority.BASIC</code> → handled immediately by Level 1, no escalation.<br />
+- <code>Priority.INTERMEDIATE</code> → Level 1 escalates, Level 2 handles.<br />
+- (a hypothetical unmatched priority) → falls through to Level 3's <code>else</code> → "Request cannot be handled."</p>
+<hr />
+<h2 id="notes-possible-improvements-not-changed-in-the-code">Notes / possible improvements (not changed in the code)</h2>
+<ul>
+<li><strong>Each handler stops at "handled".</strong> This is the <em>pure</em> Chain of Responsibility where exactly one handler consumes the request. A variant lets every handler act <em>and</em> forward (e.g. logging/validation pipelines) — that's the same pattern with the "stop" removed.</li>
+<li><strong>The chain is wired by hand</strong> in <code>main</code> via <code>setNextHandler</code>. In a Spring service you'd typically inject the handlers (e.g. an ordered <code>List&lt;ISupportHandler&gt;</code>) and link them automatically, but hand-wiring keeps the mechanism visible here.</li>
+<li>Unlike some sibling modules, this one is a <strong>plain <code>main</code></strong> with no <code>SpringApplication.run(...)</code> — the pattern needs no container.</li>
+</ul>
+<hr />
+<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<ul>
+<li><strong>Chain of Responsibility (this module)</strong> passes a request along a line of handlers until one handles it — the sender picks <em>nothing</em>, the chain decides.</li>
+<li><strong>Command</strong> turns a request into an object you can queue/undo — it's about <em>what</em> to do, not <em>who</em> does it.</li>
+<li><strong>Strategy</strong> picks <em>one</em> algorithm up front — no pass-along; the caller chooses the single handler directly.</li>
+</ul>
+<p>Reach for Chain of Responsibility when <strong>multiple objects might handle a request</strong>, the handler set or order should be configurable, and the sender shouldn't be coupled to the specific receiver.</p>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Observer Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="observer-design-pattern">Observer Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Define a <strong>one-to-many</strong> dependency between objects so that when one object (the <strong>subject / observable</strong>) changes state, all its dependents (the <strong>observers</strong>) are notified — without the subject knowing the concrete type of any observer. It's the "publish/subscribe" relationship: subscribers register with a publisher, and the publisher broadcasts changes to whoever is currently listening.</p>
+<p>Here the subject is a <strong><code>MessagePublisher</code></strong> that holds a message, and the observers are <strong>subscribers</strong> that want to react whenever the message changes.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code> &lt;&lt;interface&gt;&gt; Observable            &lt;&lt;interface&gt;&gt; Observer
+ | +attach(Observer)     |           | +update() |
+ | +detach(Observer)     |               ^      ^
+ | +notifyUpdate()       |               |      |
+ +-----------^-----------+     MessageSubscriberOne  MessageSubscriberTwo
+             |                  (attach(this) in ctor; pulls getMsg())
+     MessagePublisher
+     | -observers : List&lt;Observer&gt;
+     | -msg : String
+     | +setMsg / +getMsg
+     +--&gt; notifyUpdate() -&gt; for each observer.update()
+</code></pre>
+<hr />
+<h2 id="the-players">The players</h2>
+<pre><code>observer/Observer                          the observer contract: update()
+observer/concretObserver/MessageSubscriberOne   concrete observers — print the message on update()
+                        /MessageSubscriberTwo
+
+subject/Observable                         the subject contract: attach / detach / notifyUpdate
+subject/concretSubject/MessagePublisher    concrete subject — keeps a list of observers + the message
+
+DesignPatternsApplication                  the demo — wires a publisher and two subscribers
+</code></pre>
+<p>Two contracts facing each other:</p>
+<ul>
+<li><strong><code>Observable</code></strong> = the publisher side (register/unregister/broadcast).</li>
+<li><strong><code>Observer</code></strong> = the subscriber side (be notified).</li>
+</ul>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="observer-the-subscriber-contract"><code>Observer</code> — the subscriber contract</h3>
+<pre><code class="language-java">public interface Observer {
+    public void update();
+}
+</code></pre>
+<ul>
+<li>One method: <strong><code>update()</code></strong> — "something you care about changed; react now." Every subscriber implements this.</li>
+<li>The subject will call <code>update()</code> on each registered observer. Because the subject only knows this interface, it can notify <em>any</em> observer without knowing its class — that's the decoupling.</li>
+</ul>
+<h3 id="observable-the-publisher-contract"><code>Observable</code> — the publisher contract</h3>
+<pre><code class="language-java">public interface Observable {
+    public void attach(Observer observer);
+    public void detach(Observer observer);
+    public void notifyUpdate();
+}
+</code></pre>
+<ul>
+<li><strong><code>attach(observer)</code></strong> — subscribe: add an observer to the notify list.</li>
+<li><strong><code>detach(observer)</code></strong> — unsubscribe: remove one.</li>
+<li><strong><code>notifyUpdate()</code></strong> — broadcast: tell every currently-registered observer to <code>update()</code>.</li>
+</ul>
+<p>These three methods are the entire publisher side of the pattern: manage a dynamic subscriber list and fan out notifications to it.</p>
+<h3 id="messagepublisher-the-concrete-subject"><code>MessagePublisher</code> — the concrete subject</h3>
+<pre><code class="language-java">public class MessagePublisher implements Observable {
+
+    private List&lt;Observer&gt; observers = new ArrayList&lt;&gt;();
+    private String msg;
+
+    @Override public void attach(Observer observer) { observers.add(observer); }
+    @Override public void detach(Observer observer) { observers.remove(observer); }
+
+    @Override public void notifyUpdate() {
+        observers.stream().forEach(observer -&gt; observer.update());
+    }
+
+    public String getMsg()            { return msg; }
+    public void   setMsg(String msg)  { this.msg = msg; }
+}
+</code></pre>
+<ul>
+<li><strong><code>private List&lt;Observer&gt; observers</code></strong> — the subscriber registry. It holds observers <strong>by the interface type</strong>, so the publisher never knows (or cares) that they're <code>MessageSubscriberOne</code>/<code>Two</code>. Observers can join and leave at runtime — the list is dynamic.</li>
+<li><strong><code>attach</code> / <code>detach</code></strong> — add/remove from that list.</li>
+<li><strong><code>notifyUpdate()</code></strong> — iterates the list and calls <code>update()</code> on each observer. This is the "broadcast": one call fans out to all subscribers. (It uses a stream <code>forEach</code>, equivalent to a plain loop over the list.)</li>
+<li><strong><code>msg</code> + <code>getMsg()</code>/<code>setMsg()</code></strong> — the piece of state the observers care about. <code>getMsg()</code> is how an observer <em>pulls</em> the current value when notified (this is the <strong>pull model</strong>; see <em>Why</em> below).</li>
+</ul>
+<h3 id="the-concrete-observers">The concrete observers</h3>
+<pre><code class="language-java">public class MessageSubscriberOne implements Observer {
+
+    private MessagePublisher observable;
+
+    public MessageSubscriberOne(MessagePublisher _obserObservable) {
+        this.observable = _obserObservable;
+        this.observable.attach(this);      // self-register with the publisher
+    }
+
+    @Override
+    public void update() {
+        System.out.println(this.observable.getMsg());
+    }
+}
+</code></pre>
+<ul>
+<li><strong>The constructor takes the publisher and immediately calls <code>observable.attach(this)</code></strong> — so a subscriber <strong>registers itself</strong> at construction time. As soon as you <code>new</code> a <code>MessageSubscriberOne(publisher)</code>, it's on the publisher's notify list.</li>
+<li><strong>It keeps a reference to the publisher</strong> so that, when notified, it can <strong>pull</strong> the current message via <code>observable.getMsg()</code>.</li>
+<li><strong><code>update()</code></strong> is the reaction: print the publisher's current message. <code>MessageSubscriberTwo</code> is identical (its <code>update()</code> also prints <code>getMsg()</code>); having two shows that one change can drive many independent reactions.</li>
+</ul>
+<h3 id="designpatternsapplication-the-demo"><code>DesignPatternsApplication</code> — the demo</h3>
+<pre><code class="language-java">MessagePublisher publisher = new MessagePublisher();
+publisher.setMsg(&quot;---I am going to change-----&quot;);
+
+MessageSubscriberOne messageSubscriberOne = new MessageSubscriberOne(publisher);
+messageSubscriberOne.update();
+
+publisher.setMsg(&quot;-----Am i going to change------&quot;);
+MessageSubscriberTwo messageSubscriberTwo = new MessageSubscriberTwo(publisher);
+messageSubscriberTwo.update();
+</code></pre>
+<ul>
+<li>Create the publisher and set a message.</li>
+<li>Create <code>MessageSubscriberOne</code> — its constructor <strong>attaches</strong> it to the publisher. Then <code>update()</code> is called and it prints the current message.</li>
+<li>Change the message, create <code>MessageSubscriberTwo</code> (which attaches itself), and call its <code>update()</code>.</li>
+</ul>
+<p><strong>Console output:</strong></p>
+<pre><code>---I am going to change-----
+-----Am i going to change------
+</code></pre>
+<hr />
+<h2 id="important-what-this-demo-does-not-do-honest-read-of-the-code">Important: what this demo does <em>not</em> do (honest read of the code)</h2>
+<p>The classic Observer flow is: <strong>change state → the subject calls <code>notifyUpdate()</code> → every observer's <code>update()</code> fires automatically.</strong> In this demo that automatic broadcast is <strong>never triggered</strong>:</p>
+<ul>
+<li><code>setMsg(...)</code> only stores the string. It does <strong>not</strong> call <code>notifyUpdate()</code>, so changing the message does not notify anyone on its own.</li>
+<li><code>publisher.notifyUpdate()</code> is <strong>never called</strong> anywhere. Instead the demo calls each observer's <code>update()</code> <strong>manually</strong> (<code>messageSubscriberOne.update()</code>).</li>
+</ul>
+<p>So the subscription machinery (<code>attach</code>, the observer list, <code>notifyUpdate</code>) is fully built, but the demo exercises it by hand rather than letting the subject drive it. A consequence: after the second <code>setMsg(...)</code>, <code>MessageSubscriberOne</code> is <strong>not</strong> re-notified — nothing calls it again — which is why it doesn't print the new message.</p>
+<p><strong>How it's <em>meant</em> to work</strong> (the one-line change that makes it a true Observer, described here, not applied to the code): have <code>setMsg</code> end with <code>notifyUpdate()</code>:</p>
+<pre><code class="language-java">public void setMsg(String msg) {
+    this.msg = msg;
+    notifyUpdate();     // &lt;-- broadcast to all attached observers automatically
+}
+</code></pre>
+<p>Then a single <code>publisher.setMsg("…")</code> would cause <strong>every attached subscriber</strong> to print the new value, with no manual <code>update()</code> calls — which is the whole point of the pattern. The README documents the current behavior faithfully; the code is left unchanged as requested.</p>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-observer-instead-of-the-publisher-calling-subscribers-directly">Why Observer instead of the publisher calling subscribers directly?</h3>
+<p>Without it, the publisher would need a hard-coded reference to every subscriber and would call each one by name — tightly coupling it to specific classes, and forcing a code change every time a new subscriber appears. Observer inverts this: subscribers <strong>register themselves</strong>, and the publisher just walks an anonymous list. New subscriber types can be added with <strong>zero changes</strong> to the publisher.</p>
+<h3 id="why-does-the-subject-hold-listobserver-the-interface-not-concrete-subscribers">Why does the subject hold <code>List&lt;Observer&gt;</code> (the interface), not concrete subscribers?</h3>
+<p>So the subject is decoupled from who's listening. It can notify anything that implements <code>Observer</code>, present or future. This is "program to an interface" again — the publisher's broadcast code never mentions a concrete subscriber class.</p>
+<h3 id="why-do-observers-attachthis-in-their-constructor">Why do observers <code>attach(this)</code> in their constructor?</h3>
+<p>It makes subscription automatic and atomic: the moment an observer exists, it's already listening — you can't forget to register it. (Trade-off: it also couples the observer to a <em>specific</em> publisher passed into its constructor, and leaking <code>this</code> from a constructor is something to be careful with in multithreaded code. A common alternative is to attach explicitly from the outside: <code>publisher.attach(subscriber)</code>.)</p>
+<h3 id="why-the-pull-model-getmsg-instead-of-pushing-the-data-into-update">Why the "pull" model (<code>getMsg()</code>) instead of pushing the data into <code>update()</code>?</h3>
+<p>There are two flavors of Observer:<br />
+- <strong>Push</strong> — the subject passes the changed data as an argument: <code>update(String newMsg)</code>.<br />
+- <strong>Pull (this module)</strong> — the subject just says "something changed" via <code>update()</code>, and the observer <strong>pulls</strong> whatever it needs from the subject (<code>observable.getMsg()</code>).</p>
+<p>Pull keeps the <code>Observer</code> interface tiny and generic (one no-arg method works for any kind of change), and lets each observer decide exactly which parts of the subject's state it cares about. The cost is that every observer must hold a reference back to the subject to pull from it — which is exactly why these subscribers store <code>observable</code>.</p>
+<h3 id="why-detach-even-though-the-demo-never-calls-it">Why <code>detach</code> even though the demo never calls it?</h3>
+<p>Lifecycle management. Real observers come and go; <code>detach</code> lets a subscriber stop listening so the subject doesn't keep notifying (and keep alive) observers that no longer care. Omitting detach in long-running systems is a classic source of the <strong>lapsed-listener memory leak</strong>.</p>
+<hr />
+<h2 id="execution-flow-the-demo">Execution flow (the demo)</h2>
+<pre><code>main
+ │
+ ├── new MessagePublisher()                       observers = []          msg = null
+ ├── publisher.setMsg(&quot;---I am going to change-----&quot;)   msg set (no notify)
+ │
+ ├── new MessageSubscriberOne(publisher)
+ │        └── publisher.attach(this)              observers = [One]
+ ├── messageSubscriberOne.update()
+ │        └── prints observable.getMsg()  → &quot;---I am going to change-----&quot;
+ │
+ ├── publisher.setMsg(&quot;-----Am i going to change------&quot;)  msg changed (no notify → One NOT re-called)
+ │
+ ├── new MessageSubscriberTwo(publisher)
+ │        └── publisher.attach(this)              observers = [One, Two]
+ └── messageSubscriberTwo.update()
+          └── prints observable.getMsg()  → &quot;-----Am i going to change------&quot;
+</code></pre>
+<p>Note how <code>notifyUpdate()</code> (the broadcast to the whole <code>observers</code> list) is never reached — each <code>update()</code> is a manual, single-observer call. With the <code>setMsg → notifyUpdate</code> wiring described above, the second <code>setMsg</code> alone would have printed the new message from <strong>both</strong> subscribers.</p>
+<hr />
+<h2 id="notes-possible-extensions-not-changed-in-the-code">Notes / possible extensions (not changed in the code)</h2>
+<ul>
+<li><strong>Two <code>update()</code> methods carry leftover <code>// TODO Auto-generated method stub</code> comments</strong> from the IDE (in <code>MessageSubscriberTwo.update</code> and inside <code>MessagePublisher</code>). They're harmless placeholders and don't affect behavior.</li>
+<li><strong>Thread safety.</strong> A plain <code>ArrayList</code> iterated during <code>notifyUpdate()</code> isn't safe if observers attach/detach concurrently (or during notification). Production code often uses a <code>CopyOnWriteArrayList</code>.</li>
+<li><strong><code>SpringApplication.run(...)</code></strong> boots a context but is unrelated to the pattern; the wiring here is all manual. (Spring's own <code>ApplicationEvent</code>/<code>@EventListener</code> is essentially the Observer pattern provided by the framework.)</li>
+</ul>
+<hr />
+<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<ul>
+<li><strong>Observer (this module)</strong> — one subject broadcasts to <strong>many</strong> observers that registered themselves; a state change fans out to all listeners.</li>
+<li><strong>Chain of Responsibility</strong> — a request travels to <strong>one</strong> handler along a chain, not broadcast to all.</li>
+<li><strong>Mediator</strong> — centralizes many-to-many communication in a hub, instead of subjects notifying observers directly.</li>
+<li><strong>State / Strategy</strong> — a context delegates to a <em>single</em> swapped-in object, not a list of listeners.</li>
+</ul>
+<p>Reach for Observer when a change in one object must be reflected in an <strong>open-ended set</strong> of others, and you want the source to stay ignorant of who's listening — event systems, UI data-binding, and pub/sub messaging are the canonical uses.</p>
+</body>
+</html>

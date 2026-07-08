@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Prototype Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="prototype-design-pattern">Prototype Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Create new objects by <strong>copying an existing instance</strong> (the <em>prototype</em>) instead of constructing one from scratch. The caller says "give me another one like this" and the object clones itself — without the caller needing to know its concrete class or how expensive it is to build.</p>
+<p>This implementation uses Java's <code>Cloneable</code> marker interface and a self-declared <code>clone()</code> method on each product.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code>      &lt;&lt;interface&gt;&gt; Shape (extends Cloneable)
+      +--------------------+
+      | +clone() : Shape   |
+      +----------^---------+
+                 | implements
+           +-----+------+
+           |   Circle   |
+           +------------+
+           | -radius    |
+           | -color     |
+           | +clone() --+--&gt; returns new Circle(radius,color)
+           +------------+
+ client -&gt; original.clone() -&gt; independent copy
+</code></pre>
+<hr />
+<h2 id="the-players">The players</h2>
+<pre><code>prototype/contract/Shape                 the prototype interface (declares clone())
+prototype/contract/concret/Circle         a concrete prototype that copies itself
+prototype/PrototypeDesignPattern          the demo — clones a Circle and prints both
+</code></pre>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="shape-the-prototype-interface"><code>Shape</code> — the prototype interface</h3>
+<pre><code class="language-java">public interface Shape extends Cloneable {
+    Shape clone();
+}
+</code></pre>
+<ul>
+<li><strong><code>extends Cloneable</code></strong> — <code>Cloneable</code> is a <em>marker interface</em>: it has no methods, it just tags a class as "allowed to be cloned." Its role is explained in <em>Why <code>Cloneable</code></em> below.</li>
+<li><strong><code>Shape clone();</code></strong> — declares the copy operation and gives it a <strong>covariant return type</strong> of <code>Shape</code>. <code>Object</code> already has a <code>protected Object clone()</code>; redeclaring it here does two things: it makes the method <strong>public</strong> (so callers can invoke it) and it <strong>narrows the return type</strong> from <code>Object</code> to <code>Shape</code>, so callers get a <code>Shape</code> back without casting.</li>
+</ul>
+<h3 id="circle-a-concrete-prototype"><code>Circle</code> — a concrete prototype</h3>
+<pre><code class="language-java">public class Circle implements Shape {
+
+    int radius;
+    String color;
+
+    public Circle(int radius, String color) {
+        this.radius = radius;
+        this.color  = color;
+    }
+
+    @Override
+    public Shape clone() {
+        return new Circle(radius, color);
+    }
+}
+</code></pre>
+<ul>
+<li><strong>The fields <code>radius</code> and <code>color</code></strong> hold the state that must be reproduced in the copy.</li>
+<li><strong>The constructor</strong> is the normal way to build a <code>Circle</code> — but the point of Prototype is to <em>avoid</em> making the caller use it directly.</li>
+<li><strong><code>clone()</code></strong> is the heart of the pattern. This implementation copies <strong>manually</strong>: it reads its own current <code>radius</code> and <code>color</code> and passes them into a brand-new <code>Circle</code>. The returned object is a <strong>separate instance</strong> with equal field values.</li>
+</ul>
+<h3 id="prototypedesignpattern-the-demo"><code>PrototypeDesignPattern</code> — the demo</h3>
+<pre><code class="language-java">Circle originalCircle = new Circle(10, &quot;Black&quot;);
+Circle copyCircle = (Circle) originalCircle.clone();
+
+System.out.println(originalCircle);
+System.out.println(copyCircle);
+</code></pre>
+<ul>
+<li><code>originalCircle</code> is the prototype.</li>
+<li><code>originalCircle.clone()</code> produces a <strong>new</strong> <code>Circle(10, "Black")</code>. The cast <code>(Circle)</code> narrows the <code>Shape</code> return back to <code>Circle</code>.</li>
+<li>Printing both shows <strong>two different</strong> <code>Circle@&lt;hashcode&gt;</code> lines — different hashcodes prove they are two distinct objects in memory, not the same reference. (See the note on <code>toString()</code> below.)</li>
+</ul>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-clone-instead-of-just-calling-the-constructor">Why clone instead of just calling the constructor?</h3>
+<p>Prototype pays off when <strong>construction is expensive or complicated</strong> — the object took a database round-trip, a heavy computation, or a long configuration sequence to reach its current state. Copying an already-built instance skips all of that. It also lets code create new objects <strong>without knowing their concrete class</strong>: given any <code>Shape</code>, you can call <code>clone()</code> and get another one of the same kind, even if you don't know whether it's a <code>Circle</code>, <code>Square</code>, etc. The prototype instance effectively <em>is</em> the factory.</p>
+<h3 id="why-cloneable">Why <code>Cloneable</code>?</h3>
+<p><code>Cloneable</code> is Java's opt-in switch for cloning. If a class calls <code>Object.clone()</code> <strong>without</strong> implementing <code>Cloneable</code>, the JVM throws <code>CloneNotSupportedException</code>. So the interface is a safety gate: it signals "this type consents to being cloned." This module declares <code>Shape extends Cloneable</code> to express that intent for the whole family.</p>
+<blockquote>
+<p>Subtlety: this implementation does <strong>not</strong> actually call <code>super.clone()</code> — it copies by hand with <code>new Circle(...)</code>. Because of that, it would technically work even without <code>Cloneable</code>. Keeping <code>extends Cloneable</code> still communicates intent and keeps the door open for implementations that <em>do</em> use <code>Object.clone()</code>.</p>
+</blockquote>
+<h3 id="why-declare-clone-public-with-a-shape-return-type">Why declare <code>clone()</code> public with a <code>Shape</code> return type?</h3>
+<ul>
+<li><code>Object.clone()</code> is <code>protected</code>, so callers in other packages couldn't invoke it. Redeclaring it in the interface makes it <strong>public</strong>.</li>
+<li>Returning <code>Shape</code> (not <code>Object</code>) is a <strong>covariant return</strong> that spares callers a cast in the common case and keeps the API type-safe.</li>
+</ul>
+<h3 id="manual-copy-vs-superclone-and-shallow-vs-deep">Manual copy vs. <code>super.clone()</code> — and shallow vs. deep</h3>
+<p>There are two ways to implement <code>clone()</code>:</p>
+<ol>
+<li><strong><code>super.clone()</code></strong> — asks <code>Object</code> to make a bitwise field-by-field copy. This is a <strong>shallow</strong> copy: primitive fields are duplicated, but object-reference fields are <em>shared</em> (both the original and the copy point at the same nested object). Fine here because <code>String</code> is immutable, but dangerous if a field is a mutable object (a <code>List</code>, an array) — mutating it through one copy would affect the other.</li>
+<li><strong>Manual copy (what this code does)</strong> — <code>new Circle(radius, color)</code>. You control exactly what gets copied. For a class with mutable nested objects you would deep-copy them here (e.g. <code>new ArrayList&lt;&gt;(other.items)</code>), producing a <strong>deep</strong> copy with no shared mutable state.</li>
+</ol>
+<p>This module's fields are an <code>int</code> and an immutable <code>String</code>, so a shallow copy and this manual copy are equivalent — but writing it manually makes the copying explicit and side-steps the well-known awkwardness of <code>Object.clone()</code> (checked exception, <code>Cloneable</code> gotchas, no constructor invocation).</p>
+<h3 id="why-does-printing-show-two-different-hashcodes">Why does printing show two different hashcodes?</h3>
+<p><code>Circle</code> does <strong>not</strong> override <code>toString()</code>, so <code>System.out.println</code> falls back to <code>Object.toString()</code>, which prints <code>ClassName@hexHashCode</code>. The two lines differ because the original and the clone are genuinely separate objects — which is the visible proof that <code>clone()</code> produced a copy, not a shared reference. (If you wanted to confirm the <em>values</em> match rather than the identities differ, you'd override <code>toString()</code> to print <code>radius</code>/<code>color</code> — but that would hide the "two distinct objects" demonstration.)</p>
+<hr />
+<h2 id="execution-flow-as-run-from-main">Execution flow (as run from <code>main</code>)</h2>
+<pre><code>PrototypeDesignPattern.main
+        │
+        ├── new Circle(10, &quot;Black&quot;)             build the prototype the expensive/normal way
+        │        └── originalCircle
+        │
+        ├── originalCircle.clone()              the object copies ITSELF
+        │        └── new Circle(10, &quot;Black&quot;)    a brand-new, independent instance
+        │        └── copyCircle
+        │
+        ├── println(originalCircle)  → Circle@1a2b3c   (identity #1)
+        └── println(copyCircle)      → Circle@4d5e6f   (identity #2 — different object)
+</code></pre>
+<hr />
+<h2 id="relationship-to-the-other-creational-patterns">Relationship to the other Creational patterns</h2>
+<ul>
+<li><strong>Factory / Abstract Factory</strong> create objects by <strong>choosing a class</strong> and calling <code>new</code> inside the factory.</li>
+<li><strong>Builder</strong> assembles one complex object <strong>field by field</strong>.</li>
+<li><strong>Prototype (this module)</strong> skips construction logic entirely and <strong>copies an existing instance</strong>. Reach for it when you already have a fully-configured object and want another just like it, or when you want to decouple "make another one" from the concrete class.</li>
+</ul>
+<blockquote>
+<p>Note: unlike the other modules here, Prototype has no <code>SpringApplication.run(...)</code> — it's a plain <code>main</code>, because cloning needs no container. It's the purest demonstration of the pattern with nothing else in the way.</p>
+</blockquote>
+</body>
+</html>

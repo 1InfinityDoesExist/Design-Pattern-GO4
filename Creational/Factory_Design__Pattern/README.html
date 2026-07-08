@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Factory Design  Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="factory-method-design-pattern">Factory Method Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Define an interface for creating an object, but let the <em>factory</em> decide which concrete class to instantiate. The caller asks for a product <strong>by a key</strong> (here an enum) and gets back the right implementation without ever naming the concrete class or calling <code>new</code> on it.</p>
+<p>This implementation is the <strong>Spring-idiomatic, self-registering</strong> variant: every product is a Spring <code>@Component</code>, they are all injected as a <code>List</code>, and the factory indexes them into an <code>EnumMap</code>. Adding a new shape requires <strong>zero changes</strong> to the factory.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code>            &lt;&lt;interface&gt;&gt; Shape
+            +------------------+
+            | +draw()          |
+            | +getDesignType() |
+            +---------^--------+
+                      | implements
+        +---------+---+-----+----------+
+        |         |         |          |
+    +---+--+  +---+-----+ +-+-------+  |
+    |Circle|  |Rectangle| |Triangle |  |
+    +------+  +---------+ +---------+  |
+                      collected into   |
+        +------------------------------+--+
+        |            ShapeFactory         |
+        +---------------------------------+
+        | - shapeMap : EnumMap&lt;DesignType,Shape&gt;
+        | + getShape(DesignType) : Shape  |
+        +---------------------------------+
+</code></pre>
+<hr />
+<h2 id="the-players">The players</h2>
+<pre><code>enums/DesignType                         the key (CIRCLE, TRIANGLE, RECTANGLE)
+factory/contract/Shape                   the product interface
+factory/contract/concret/Circle          concrete products, each an @Component
+                        /Rectangle
+                        /Triangle
+factory/ShapeFactory                     the factory — maps DesignType → Shape
+</code></pre>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="designtype-the-key-enum"><code>DesignType</code> — the key enum</h3>
+<pre><code class="language-java">public enum DesignType {
+    CIRCLE(&quot;CIRCLE&quot;), TRIANGLE(&quot;TRIANGLE&quot;), RECTANGLE(&quot;RECTANGLE&quot;);
+
+    private String name;
+
+    private DesignType(String name) { this.name = name; }
+
+    @JsonValue
+    public String getName() { return name; }
+}
+</code></pre>
+<ul>
+<li>An <code>enum</code> is the discriminator that tells the factory <em>which</em> product you want. Using an enum instead of a <code>String</code> gives you <strong>compile-time safety</strong> — you can't ask for a shape that doesn't exist, and it makes the <code>EnumMap</code> (below) possible.</li>
+<li><code>@JsonValue</code> — when this enum is serialized to/from JSON (e.g. as a request field), Jackson uses <code>getName()</code> as its wire value instead of the default <code>name()</code>. Not needed by the pattern itself; it's there so the enum is API-friendly.</li>
+</ul>
+<h3 id="shape-the-product-interface"><code>Shape</code> — the product interface</h3>
+<pre><code class="language-java">public interface Shape {
+    DesignType getDesignType();
+    void draw();
+}
+</code></pre>
+<ul>
+<li><code>draw()</code> is the actual behavior a product offers.</li>
+<li><code>getDesignType()</code> is the key idea that makes self-registration work: <strong>each product declares its own key.</strong> The factory doesn't need a big switch mapping classes to enums — it just asks each product "what are you?".</li>
+</ul>
+<h3 id="circle-rectangle-triangle-concrete-products"><code>Circle</code> / <code>Rectangle</code> / <code>Triangle</code> — concrete products</h3>
+<pre><code class="language-java">@Component
+public class Circle implements Shape {
+    @Override public void draw() { System.out.println(&quot;Shape is circle.&quot;); }
+    @Override public DesignType getDesignType() { return DesignType.CIRCLE; }
+}
+</code></pre>
+<ul>
+<li><code>@Component</code> — registers each shape as a Spring bean. This is what lets Spring discover them all and inject them as a list. Without it, the factory would have nothing to collect.</li>
+<li><code>getDesignType()</code> returns <em>this</em> product's identity. <code>Circle</code> says <code>CIRCLE</code>, <code>Triangle</code> says <code>TRIANGLE</code>, and so on.</li>
+</ul>
+<h3 id="shapefactory-the-factory-itself"><code>ShapeFactory</code> — the factory itself</h3>
+<pre><code class="language-java">@Component
+public class ShapeFactory {
+
+    private final EnumMap&lt;DesignType, Shape&gt; shapeMap;
+    private final Shape defaultShape;
+
+    public ShapeFactory(List&lt;? extends Shape&gt; shapes, Circle circle) {
+        this.defaultShape = Objects.requireNonNull(circle, &quot;default circle must not be null&quot;);
+        this.shapeMap = shapes.stream().collect(Collectors.toMap(
+                Shape::getDesignType,                 // key   = each product's own type
+                Function.identity(),                  // value = the product itself
+                (a, b) -&gt; b,                          // merge = if duplicate key, keep the later one
+                () -&gt; new EnumMap&lt;&gt;(DesignType.class))); // backing map = EnumMap
+    }
+
+    public Shape getShape(final DesignType designType) {
+        return shapeMap.getOrDefault(designType, defaultShape);
+    }
+}
+</code></pre>
+<p><strong>Constructor — <code>List&lt;? extends Shape&gt; shapes</code>:</strong><br />
+- Spring injects <strong>every</strong> bean that implements <code>Shape</code> as a list. This is the crux of self-registration: the factory never mentions <code>Circle</code>, <code>Rectangle</code>, <code>Triangle</code> by name (except for the default). New implementations get picked up automatically just by being <code>@Component</code>s.<br />
+- <code>Circle circle</code> is injected separately to serve as the <strong>default/fallback</strong> product.</p>
+<p><strong>Building the map with a stream + <code>Collectors.toMap</code>:</strong><br />
+- <code>Shape::getDesignType</code> — the key extractor. Each shape is filed under the key <em>it</em> reports.<br />
+- <code>Function.identity()</code> — the value is the shape object itself (<code>x -&gt; x</code>).<br />
+- <code>(a, b) -&gt; b</code> — the <strong>merge function</strong>. <code>toMap</code> throws on duplicate keys unless you supply one; this says "if two shapes claim the same <code>DesignType</code>, keep the second." It prevents a startup crash if a key is accidentally duplicated.<br />
+- <code>() -&gt; new EnumMap&lt;&gt;(DesignType.class)</code> — the <strong>map supplier</strong>. Forces the result to be an <code>EnumMap</code> instead of the default <code>HashMap</code>.</p>
+<p><strong><code>getShape(...)</code>:</strong><br />
+- <code>getOrDefault(designType, defaultShape)</code> — one clean line: look the key up, and if nothing is registered for it, hand back the default <code>Circle</code> instead of <code>null</code>. The caller never has to null-check.</p>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-an-enummap-instead-of-a-switch-or-a-hashmap">Why an <code>EnumMap</code> instead of a <code>switch</code> or a <code>HashMap</code>?</h3>
+<ul>
+<li><strong>vs. <code>switch</code></strong> — a <code>switch(designType)</code> with a <code>case</code> per shape means the factory has to be <strong>edited every time</strong> you add a shape (Open/Closed Principle violation). The map-based approach means a new shape is discovered automatically; the factory code is closed for modification. This is the exact refactor this project standardized on ("stop using switch cases, use EnumMap").</li>
+<li><strong>vs. <code>HashMap</code></strong> — <code>EnumMap</code> is purpose-built for enum keys. Internally it is backed by a plain array indexed by the enum's <code>ordinal()</code>, so lookups are array-index-fast with no hashing and no collisions, and it uses less memory. Whenever the key is an enum, <code>EnumMap</code> is the right container.</li>
+</ul>
+<h3 id="why-inject-a-list-extends-shape-self-registration">Why inject a <code>List&lt;? extends Shape&gt;</code> (self-registration)?</h3>
+<p>Because it inverts the dependency. A hand-written factory <em>knows about</em> all its products (it imports and <code>new</code>s them). Here the factory knows about <strong>none</strong> of them — it just receives whatever <code>Shape</code> beans exist and files them by their self-reported key. Adding <code>Hexagon</code>:</p>
+<ol>
+<li>create <code>Hexagon implements Shape</code>, annotate <code>@Component</code>, return <code>DesignType.HEXAGON</code>;</li>
+<li>add <code>HEXAGON</code> to the enum.</li>
+</ol>
+<p>That's it — <strong><code>ShapeFactory</code> is never touched.</strong></p>
+<h3 id="why-each-product-reports-its-own-getdesigntype">Why each product reports its own <code>getDesignType()</code>?</h3>
+<p>So the factory doesn't need any external mapping table. The alternative (a central "Circle→CIRCLE" registry) duplicates knowledge and drifts out of sync. Letting the product own its key keeps the single source of truth inside the product.</p>
+<h3 id="why-a-default-shape-via-getordefault">Why a default shape via <code>getOrDefault</code>?</h3>
+<p>Robustness. If someone asks for a <code>DesignType</code> that has no registered implementation, returning a sensible default is friendlier than returning <code>null</code> and forcing every caller to guard against <code>NullPointerException</code>. <code>Objects.requireNonNull</code> in the constructor guarantees the default itself is never null.</p>
+<h3 id="why-final-fields">Why <code>final</code> fields?</h3>
+<p><code>shapeMap</code> and <code>defaultShape</code> are set once in the constructor and never change. Marking them <code>final</code> makes the factory <strong>immutable after construction</strong> and therefore inherently thread-safe to read — no synchronization needed for concurrent <code>getShape()</code> calls.</p>
+<hr />
+<h2 id="execution-flow-as-run-from-main">Execution flow (as run from <code>main</code>)</h2>
+<pre><code>DesignPatternsApplication.main
+        │
+        ├── SpringApplication.run(...)                   Spring starts, discovers @Components
+        │        └── constructs Circle, Rectangle, Triangle beans
+        │        └── constructs ShapeFactory, injecting List[Circle,Rectangle,Triangle] + Circle
+        │                 └── builds EnumMap { CIRCLE→Circle, TRIANGLE→Triangle, RECTANGLE→Rectangle }
+        │
+        ├── context.getBean(ShapeFactory.class)          fetch the factory from the context
+        │
+        └── shapeFactory.getShape(DesignType.TRIANGLE)
+                   └── shapeMap.getOrDefault(TRIANGLE, circle) → Triangle bean
+                          └── .draw() → prints &quot;Shape is triangle&quot;
+</code></pre>
+<hr />
+<h2 id="factory-method-vs-abstract-factory-so-you-dont-confuse-them">Factory Method vs. Abstract Factory (so you don't confuse them)</h2>
+<ul>
+<li><strong>Factory Method (this module)</strong> — produces <strong>one</strong> product from a family, chosen by a key. One axis: "which shape?"</li>
+<li><strong>Abstract Factory</strong> (the sibling module) — produces a <strong>matched set</strong> of related products (a chair <em>and</em> a table that belong together). The factory itself <em>is</em> the choice; you don't pass a key per product.</li>
+</ul>
+<p>If you ever find yourself passing a "type" argument into every <code>create...()</code> call, you're doing Factory Method — which is correct here, and is exactly what the Abstract Factory module was fixed <strong>not</strong> to do.</p>
+<blockquote>
+<p>Note: <code>SpringApplication.run(...)</code> boots the container so the <code>@Component</code> products can be discovered and injected. The pattern itself doesn't require Spring — you could build the <code>EnumMap</code> by hand — but Spring's component scanning is what makes the self-registration automatic.</p>
+</blockquote>
+</body>
+</html>

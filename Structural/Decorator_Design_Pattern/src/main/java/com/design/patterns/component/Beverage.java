@@ -8,7 +8,6 @@ public abstract class Beverage {
 	protected int price;
 
 	public Beverage() {
-		// TODO Auto-generated constructor stub
 	}
 
 	public Beverage(String name) {

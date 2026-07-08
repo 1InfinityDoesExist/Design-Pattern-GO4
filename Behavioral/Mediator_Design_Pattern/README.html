@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Mediator Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="mediator-design-pattern-scaffold">Mediator Design Pattern (scaffold)</h1>
+<blockquote>
+<p>This module is a <strong>placeholder</strong> — the pattern is not implemented here yet. The full, runnable, production-mirrored example lives in <code>Design-Pattern-RealUseCase/RealUseCase_Behavioral/RealUseCase_Mediator_Design_Pattern</code>.</p>
+</blockquote>
+<h2 id="target-uml-what-the-implementation-should-look-like">Target UML (what the implementation should look like)</h2>
+<pre><code> ColleagueA \               / ColleagueC
+             +--&gt; Mediator &lt;+
+ ColleagueB /   (routes all  \ ColleagueD
+                 interaction;
+                 colleagues never call each other)
+</code></pre>
+<h2 id="current-code-line-by-line">Current code, line by line</h2>
+<pre><code class="language-java">package com.design.patterns.mediator;
+
+public class MediatorDesignPattern {
+
+    public static void main(String[] args) {
+        System.out.println(&quot;Mediator Design Pattern&quot;);
+    }
+}
+</code></pre>
+<ul>
+<li><code>package com.design.patterns.mediator;</code> — the pattern's dedicated package, ready for the real classes.</li>
+<li><code>public class MediatorDesignPattern</code> — the module's entry class, named after the pattern.</li>
+<li><code>public static void main(String[] args)</code> — standard JVM entry point so the scaffold runs standalone.</li>
+<li><code>System.out.println("Mediator Design Pattern");</code> — prints the pattern name, proving the module builds and runs; replace with a real demo when implementing.</li>
+</ul>
+</body>
+</html>

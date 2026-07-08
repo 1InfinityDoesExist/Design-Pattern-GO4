@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Builder Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="builder-design-pattern">Builder Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Separate the <strong>construction</strong> of a complex object from its representation, so the same building steps can produce an object step by step. In practice, the Builder pattern lets you create an object by naming each field you set — <code>.name(...).email(...).build()</code> — instead of passing a long, order-sensitive list of constructor arguments.</p>
+<p>This implementation is the classic <strong>static nested builder</strong> form: the product (<code>Customer</code>) has a private constructor, and a nested <code>CustomerBuilder</code> is the only thing allowed to create it.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code>+---------------------------+        +------------------------------+
+|         Customer          |        |   Customer.CustomerBuilder   |
++---------------------------+ builds +------------------------------+
+| - name  : String          |&lt;-------| - name  : String             |
+| - email : String          |        | - email : String             |
++---------------------------+        +------------------------------+
+| - Customer(builder) &lt;&lt;private&gt;&gt;    | + name(String)  : Builder    |
+| + getName()               |        | + email(String) : Builder    |
+| + getEmail()              |        | + build() : Customer         |
++---------------------------+        +------------------------------+
+ client -&gt; new CustomerBuilder().name(..).email(..).build()
+</code></pre>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<pre><code class="language-java">public class Customer {
+
+    private String name;
+    private String email;
+
+    private Customer(CustomerBuilder customerBuilder) {
+        this.name = customerBuilder.name;
+        this.email = customerBuilder.email;
+    }
+
+    public String getName()  { return name; }
+    public String getEmail() { return email; }
+
+    public static class CustomerBuilder {
+        private String name;
+        private String email;
+
+        public CustomerBuilder name(String name)   { this.name = name;   return this; }
+        public CustomerBuilder email(String email) { this.email = email; return this; }
+
+        public Customer build() { return new Customer(this); }
+    }
+
+    @Override
+    public String toString() { return super.toString(); }
+}
+</code></pre>
+<h3 id="the-product-fields">The product fields</h3>
+<pre><code class="language-java">private String name;
+private String email;
+</code></pre>
+<ul>
+<li><code>private</code> — the outside world cannot set these directly. The <strong>only</strong> way to populate a <code>Customer</code> is through the builder. This is what gives the pattern control over construction.</li>
+</ul>
+<h3 id="the-private-constructor">The private constructor</h3>
+<pre><code class="language-java">private Customer(CustomerBuilder customerBuilder) {
+    this.name  = customerBuilder.name;
+    this.email = customerBuilder.email;
+}
+</code></pre>
+<ul>
+<li><strong><code>private</code></strong> — no other class can call <code>new Customer(...)</code>. This forces every creation to go through <code>CustomerBuilder</code>. It is the same "seal the constructor" idea as in Singleton, but here it channels creation through the builder rather than limiting the count.</li>
+<li>It takes the <strong>builder itself</strong> as its single argument and copies the accumulated values out of it. So the builder acts as a temporary "parameter carrier": you fill it up field by field, then hand the whole thing to the constructor in one shot.</li>
+</ul>
+<h3 id="the-getters">The getters</h3>
+<pre><code class="language-java">public String getName()  { return name; }
+public String getEmail() { return email; }
+</code></pre>
+<ul>
+<li>Read-only access to the finished object. There are deliberately <strong>no setters</strong> — once built, a <code>Customer</code> is effectively immutable (see <em>Why immutability</em> below).</li>
+</ul>
+<h3 id="the-nested-builder">The nested builder</h3>
+<pre><code class="language-java">public static class CustomerBuilder {
+    private String name;
+    private String email;
+    ...
+}
+</code></pre>
+<ul>
+<li><strong><code>static</code> nested class</strong> — this matters. A <code>static</code> nested class does <strong>not</strong> hold a hidden reference to an enclosing <code>Customer</code> instance, which is correct because the builder's job is to exist <em>before</em> any <code>Customer</code> does. A non-static inner class would require an outer instance first, which is a chicken-and-egg problem here.</li>
+<li>It mirrors the product's fields. These are the values being collected before the object is born.</li>
+</ul>
+<h3 id="the-fluent-setter-methods">The fluent setter methods</h3>
+<pre><code class="language-java">public CustomerBuilder name(String name)   { this.name = name;   return this; }
+public CustomerBuilder email(String email) { this.email = email; return this; }
+</code></pre>
+<ul>
+<li>Each stores one value and then <strong><code>return this;</code></strong>. Returning the builder itself is what enables <strong>method chaining</strong> (the "fluent interface"): <code>builder.name(...).email(...)</code>. Each call hands you back the same builder so you can immediately call the next setter.</li>
+<li>Note the methods are named <code>name(...)</code> / <code>email(...)</code> rather than <code>setName(...)</code> — a common builder convention that keeps the chain reading like a sentence.</li>
+</ul>
+<h3 id="build"><code>build()</code></h3>
+<pre><code class="language-java">public Customer build() { return new Customer(this); }
+</code></pre>
+<ul>
+<li>The terminal step. It calls the private constructor (which it is allowed to do, because the nested class is a member of <code>Customer</code>) and passes <code>this</code> builder in. The result is the fully assembled, immutable <code>Customer</code>.</li>
+</ul>
+<h3 id="tostring"><code>toString()</code></h3>
+<pre><code class="language-java">@Override
+public String toString() { return super.toString(); }
+</code></pre>
+<ul>
+<li>This override currently just delegates to <code>Object.toString()</code>, so it prints the default <code>Customer@&lt;hashcode&gt;</code>. It's a placeholder — a "real" builder demo would usually format the fields here (e.g. <code>"Customer{name=..., email=...}"</code>). It does not affect the pattern; it's only what shows up when you print the object.</li>
+</ul>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-a-builder-at-all-what-problem-does-it-solve">Why a builder at all — what problem does it solve?</h3>
+<p>Two classic problems with plain constructors:</p>
+<ol>
+<li><strong>The telescoping constructor.</strong> With many optional fields you end up with a pile of overloads — <code>Customer(name)</code>, <code>Customer(name, email)</code>, <code>Customer(name, email, phone)</code>, … — that is painful to write and read.</li>
+<li><strong>Order-sensitive, unreadable calls.</strong> <code>new Customer("Avinash", "a@b.com", "9999", null, true)</code> — which argument is which? Easy to swap two <code>String</code>s by accident and the compiler won't notice. The builder replaces this with <strong>self-documenting, named</strong> calls: <code>.name("Avinash").email("a@b.com")</code>. Order no longer matters and each value is labeled.</li>
+</ol>
+<h3 id="why-the-private-constructor">Why the private constructor?</h3>
+<p>To <strong>guarantee</strong> the builder is the only path in. If the constructor were public, callers could bypass the builder and construct a half-configured object directly, defeating the point. Sealing it makes the builder mandatory.</p>
+<h3 id="why-return-this-in-each-setter">Why <code>return this;</code> in each setter?</h3>
+<p>That single line is the entire mechanism behind the fluent chain. Without it the setters would return <code>void</code> and you'd be forced to write:</p>
+<pre><code class="language-java">CustomerBuilder b = new CustomerBuilder();
+b.name(&quot;Avinash&quot;);
+b.email(&quot;a@b.com&quot;);
+Customer c = b.build();
+</code></pre>
+<p>Returning <code>this</code> collapses that into one readable expression.</p>
+<h3 id="why-is-the-builder-static">Why is the builder <code>static</code>?</h3>
+<p>Because the builder must be usable <strong>without</strong> an existing <code>Customer</code>. A non-static inner class is tied to an outer instance (<code>outer.new Inner()</code>), but here there is no <code>Customer</code> yet — that's the whole point of building one. <code>static</code> breaks that dependency and also avoids leaking a reference to a non-existent enclosing object.</p>
+<h3 id="why-immutability-no-setters-on-customer">Why immutability (no setters on <code>Customer</code>)?</h3>
+<p>Once <code>build()</code> returns, the <code>Customer</code> cannot be modified — there are no setters and the fields are private. Immutable objects are inherently <strong>thread-safe</strong> (no one can change them under you), safe to share and cache, and safe to use as map keys. The mutable, "still being configured" state lives only in the throwaway builder; the finished product is frozen.</p>
+<h3 id="manual-builder-vs-lombok-builder">Manual builder vs. Lombok <code>@Builder</code></h3>
+<p>This module writes the builder <strong>by hand</strong> to make the mechanism visible. In this same project, Lombok's <code>@Builder</code> annotation would generate all of this (the nested builder, the fluent setters, <code>build()</code>) automatically. The hand-written version is the teaching version — it shows exactly what <code>@Builder</code> produces under the hood.</p>
+<hr />
+<h2 id="execution-flow-as-run-from-main">Execution flow (as run from <code>main</code>)</h2>
+<pre><code>DesignPatternsApplication.main
+        │
+        ├── SpringApplication.run(...)                    boots Spring (not required by the pattern)
+        │
+        └── new Customer.CustomerBuilder()                create an empty builder
+                 ├── .name(&quot;Avinash Patel&quot;)               stores name,  returns the builder
+                 ├── .email(&quot;infinityDoesExist@gmail.com&quot;) stores email, returns the builder
+                 └── .build()                             new Customer(builder) → copies fields in
+                          │
+                          └── returns an immutable Customer
+                                 ├── getEmail() → &quot;infinityDoesExist@gmail.com&quot;
+                                 └── getName()  → &quot;Avinash Patel&quot;
+</code></pre>
+<hr />
+<h2 id="relationship-to-the-other-creational-patterns">Relationship to the other Creational patterns</h2>
+<ul>
+<li><strong>Factory / Abstract Factory</strong> decide <strong>which class</strong> to instantiate.</li>
+<li><strong>Builder</strong> is about <strong>how to assemble one object</strong> that has many parts/fields — it doesn't choose a type, it constructs a single complex instance step by step.</li>
+<li><strong>Prototype</strong> avoids construction entirely by copying an existing instance.</li>
+</ul>
+<p>Use a Builder when an object has several fields (especially optional ones) and you want construction to be readable, order-independent, and to yield an immutable result.</p>
+<blockquote>
+<p>Note: <code>SpringApplication.run(...)</code> just boots a Spring context and is unrelated to the pattern; the <code>Customer</code> here is built manually, not managed by Spring.</p>
+</blockquote>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Memento Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="memento-design-pattern">Memento Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Capture an object's internal state so it can be <strong>saved and later restored</strong> — without exposing that object's internals to the outside world. In one word: <strong>undo</strong>. You snapshot an object now, keep the snapshot somewhere, and roll the object back to it later, all while the object's private data stays private.</p>
+<p>Here the object is a <strong><code>Document</code></strong> you keep writing to; each snapshot is a <strong><code>DocumentMemento</code></strong>; and a <strong><code>History</code></strong> keeps the snapshots so you can restore an earlier version.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code>+---------------+   createMemento()  +------------------+
+|   Document    |-------------------&gt;| DocumentMemento  |
+|  (originator) |                    |    (memento)     |
+| -content      |&lt;-------------------| -content {frozen}|
+| +write(text)  |  restoreFromMemento| +getSavedContent |
++---------------+                    +---------^--------+
+                                               | stores
+                                     +---------+--------+
+                                     |     History      |
+                                     |   (caretaker)    |
+                                     | -mementos : List |
+                                     | +addMemento/get  |
+                                     +------------------+
+</code></pre>
+<hr />
+<h2 id="the-three-roles-this-pattern-is-defined-by-them">The three roles (this pattern is defined by them)</h2>
+<pre><code>originator/Document          the ORIGINATOR  — the object whose state we snapshot &amp; restore
+memento/DocumentMemento      the MEMENTO     — an immutable snapshot of that state
+caretaker/History            the CARETAKER   — stores mementos, but never looks inside them
+
+MementoDesignPattern         the demo — write, snapshot, write more, then roll back
+</code></pre>
+<ul>
+<li><strong>Originator</strong> — creates a memento of its own state and knows how to restore itself from one.</li>
+<li><strong>Memento</strong> — a passive value object holding the saved state. It's the only thing that crosses between originator and caretaker.</li>
+<li><strong>Caretaker</strong> — holds mementos for safe-keeping (the history/undo stack) but treats them as <strong>opaque</strong> — it never reads or edits the state inside.</li>
+</ul>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="document-the-originator"><code>Document</code> — the originator</h3>
+<pre><code class="language-java">public class Document {
+
+    private String content;
+
+    public Document(String content) { this.content = content; }
+
+    public void write(String text) { this.content += text; }
+
+    public String getContent() { return this.content; }
+
+    public DocumentMemento createMemento() {
+        return new DocumentMemento(this.content);
+    }
+
+    public void restoreFromMemento(DocumentMemento documentMemento) {
+        this.content = documentMemento.getSavedContent();
+    }
+}
+</code></pre>
+<ul>
+<li><strong><code>private String content</code></strong> — the state we care about protecting and snapshotting. It's private; nobody edits it except through <code>Document</code>'s own methods.</li>
+<li><strong><code>write(text)</code></strong> — mutates the state (appends text). This is the "normal work" that we might later want to undo.</li>
+<li><strong><code>createMemento()</code></strong> — the <strong>save</strong> operation. The document packages a copy of its <em>current</em> <code>content</code> into a new <code>DocumentMemento</code> and hands it out. Note the originator is the one that <em>builds</em> the memento — it decides what goes in, so it controls exactly which parts of its state are captured.</li>
+<li><strong><code>restoreFromMemento(m)</code></strong> — the <strong>undo</strong> operation. The document reads the saved content back out of a memento and overwrites its own <code>content</code> with it. Again the originator is the one <em>reading</em> the memento — restoring is its responsibility, not the caretaker's.</li>
+</ul>
+<h3 id="documentmemento-the-memento"><code>DocumentMemento</code> — the memento</h3>
+<pre><code class="language-java">public class DocumentMemento {
+
+    private String content;
+
+    public DocumentMemento(String content) { this.content = content; }
+
+    public String getSavedContent() { return this.content; }
+}
+</code></pre>
+<ul>
+<li>A tiny, <strong>passive</strong> value object: a constructor that captures the state and a getter to read it back. It has no logic — it's just a labeled snapshot.</li>
+<li>It stores a <code>String</code>, which is <strong>immutable</strong> in Java, so the snapshot is a true frozen copy: later <code>write(...)</code> calls on the document cannot alter what's already inside a memento. (If the state were a <em>mutable</em> object, the memento would need to store a <strong>defensive copy</strong> — see <em>Why immutability matters</em> below.)</li>
+</ul>
+<h3 id="history-the-caretaker"><code>History</code> — the caretaker</h3>
+<pre><code class="language-java">public class History {
+
+    private List&lt;DocumentMemento&gt; mementos;
+
+    public History() { this.mementos = new ArrayList&lt;&gt;(); }
+
+    public void addMemento(DocumentMemento documentMemento) { this.mementos.add(documentMemento); }
+
+    public DocumentMemento getMemento(int index) { return this.mementos.get(index); }
+}
+</code></pre>
+<ul>
+<li>Holds a <strong>list of mementos</strong> — this is the undo history / version list.</li>
+<li><code>addMemento(...)</code> pushes a new snapshot; <code>getMemento(index)</code> retrieves one to restore later.</li>
+<li><strong>What it deliberately does <em>not</em> do:</strong> it never calls anything that interprets or changes the snapshot's contents. It stores and returns <code>DocumentMemento</code> objects whole. The caretaker is a custodian, not an editor — it moves snapshots around without ever knowing what's in them.</li>
+</ul>
+<h3 id="mementodesignpattern-the-demo"><code>MementoDesignPattern</code> — the demo</h3>
+<pre><code class="language-java">Document document = new Document(&quot;Initial content\n&quot;);
+History history = new History();
+
+document.write(&quot;Additional content\n&quot;);
+history.addMemento(document.createMemento());     // snapshot #0
+
+document.write(&quot;More content\n&quot;);
+history.addMemento(document.createMemento());     // snapshot #1
+
+document.restoreFromMemento(history.getMemento(0)); // roll back to snapshot #0
+
+System.out.println(document.getContent());
+</code></pre>
+<ul>
+<li>Start with <code>"Initial content\n"</code>.</li>
+<li>Write more, then <strong>save</strong> snapshot #0 (<code>Initial + Additional</code>).</li>
+<li>Write more, then <strong>save</strong> snapshot #1 (<code>Initial + Additional + More</code>).</li>
+<li><strong>Restore</strong> snapshot #0 — the document rolls back, discarding "More content".</li>
+</ul>
+<p><strong>Console output:</strong></p>
+<pre><code>Memento Design Pattern
+Initial content
+Additional content
+</code></pre>
+<p>The "More content" line is gone because we rolled the document back to the state captured <em>before</em> it was written.</p>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-not-just-let-callers-save-and-set-content-directly">Why not just let callers save and set <code>content</code> directly?</h3>
+<p>Because that breaks encapsulation. If undo were done by reading and writing a public <code>content</code> field from outside, then every caller would depend on the document's internal representation — change <code>content</code> from a <code>String</code> to a rope/gap-buffer and all that code breaks. Memento keeps the save/restore <em>mechanism</em> while keeping the <em>state</em> private: the outside world holds a <code>DocumentMemento</code> it can't meaningfully open, and only the <code>Document</code> knows how to fill and read it.</p>
+<h3 id="why-three-separate-roles-instead-of-one-class-doing-everything">Why three separate roles instead of one class doing everything?</h3>
+<p>Separation of concerns, and it's the whole structure of the pattern:<br />
+- The <strong>originator</strong> owns <em>what</em> state to save and <em>how</em> to restore — the only class that understands the content.<br />
+- The <strong>caretaker</strong> owns <em>when</em> to save and <em>which</em> snapshot to restore — the undo policy — without needing to understand the content at all.<br />
+- The <strong>memento</strong> is the neutral courier between them.</p>
+<p>This means you can change the undo policy (single undo, multi-level, redo, branching history) entirely inside the caretaker without touching the document, and change the document's internals without touching the caretaker.</p>
+<h3 id="why-does-the-caretaker-treat-the-memento-as-opaque">Why does the caretaker treat the memento as opaque?</h3>
+<p>So the snapshot can't be corrupted while it's in storage. If the caretaker could reach into a memento and change its content, a "saved" state could silently drift, and undo would restore something that was never actually the document's state. Keeping the memento opaque to the caretaker guarantees a snapshot is exactly what the originator put in it. (In an ideal Java implementation this is enforced — see the note below on the "wide vs. narrow interface.")</p>
+<h3 id="why-does-immutability-matter-here">Why does immutability matter here?</h3>
+<p>The memento must be a <strong>frozen</strong> copy of the state at save time. <code>String</code> is immutable, so storing the reference is enough — nothing can change it afterward. But if <code>Document</code>'s state were a <code>StringBuilder</code>, a <code>List</code>, or any mutable object, then <code>createMemento()</code> storing the <em>reference</em> would be a bug: later mutations to the live object would also mutate the "snapshot," so undo would restore the <em>current</em> state, not the saved one. The fix in that case is a <strong>defensive copy</strong> inside <code>createMemento()</code> (e.g. <code>new StringBuilder(content)</code>, <code>new ArrayList&lt;&gt;(list)</code>). Immutability is what makes the current code safe without a copy.</p>
+<h3 id="why-does-the-originator-build-and-read-the-memento-not-the-caretaker">Why does the originator build <em>and</em> read the memento (not the caretaker)?</h3>
+<p>Because only the originator understands the state. Letting the originator create the memento means it controls exactly what is captured; letting it do the restore means it controls how the state is put back. The caretaker stays blissfully ignorant, which is exactly what keeps the document's internals encapsulated.</p>
+<hr />
+<h2 id="execution-flow-the-demo">Execution flow (the demo)</h2>
+<pre><code>main
+ │
+ ├── new Document(&quot;Initial content\n&quot;)          content = &quot;Initial content\n&quot;
+ ├── new History()                               mementos = []
+ │
+ ├── document.write(&quot;Additional content\n&quot;)     content = &quot;Initial\nAdditional\n&quot;
+ ├── history.addMemento(document.createMemento())
+ │        └── DocumentMemento(&quot;Initial\nAdditional\n&quot;)   mementos = [ #0 ]
+ │
+ ├── document.write(&quot;More content\n&quot;)           content = &quot;Initial\nAdditional\nMore\n&quot;
+ ├── history.addMemento(document.createMemento())
+ │        └── DocumentMemento(&quot;Initial\nAdditional\nMore\n&quot;)  mementos = [ #0, #1 ]
+ │
+ ├── document.restoreFromMemento(history.getMemento(0))
+ │        └── content = #0.getSavedContent() = &quot;Initial\nAdditional\n&quot;   ← rolled back
+ │
+ └── println(document.getContent())
+          → &quot;Initial content\nAdditional content\n&quot;   (the &quot;More content&quot; line is undone)
+</code></pre>
+<p>Notice snapshot <strong>#1</strong> is still sitting in <code>history</code> — so you could redo/re-restore to it later with <code>getMemento(1)</code>. The history keeps every saved version.</p>
+<hr />
+<h2 id="notes-possible-improvements-not-changed-in-the-code">Notes / possible improvements (not changed in the code)</h2>
+<ul>
+<li><strong>Encapsulation could be tighter (the "wide vs. narrow interface").</strong> Here <code>DocumentMemento.getSavedContent()</code> is <code>public</code>, so the caretaker <em>could</em> read the saved content even though it doesn't. The textbook Java technique is to make the memento a <strong>nested class</strong> of the originator (or expose only a marker/narrow interface to the caretaker) so that <strong>only</strong> the originator can read the state, while the caretaker sees an opaque token. As written, the caretaker simply <em>chooses</em> not to look — the discipline is by convention, not enforced.</li>
+<li><strong>Mutable state would need a defensive copy</strong> in <code>createMemento()</code>, as explained above. Safe here only because <code>String</code> is immutable.</li>
+<li><strong>Memory cost.</strong> Each memento holds a full copy of the state; a long history of large snapshots costs memory. Real editors mitigate this with diffs/incremental mementos or a bounded history.</li>
+<li><strong>Plain <code>main</code>, no Spring</strong> — the pattern is pure OO structure and needs no container.</li>
+</ul>
+<hr />
+<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<ul>
+<li><strong>Memento (this module)</strong> — externalize and later restore an object's state for undo, keeping the state encapsulated.</li>
+<li><strong>Command</strong> — often paired with Memento: a command executes an action and stores a memento so it can <code>undo()</code> back to the prior state.</li>
+<li><strong>Prototype</strong> (creational) — also copies an object, but to produce a new usable instance, not to stash-and-restore state.</li>
+<li><strong>State</strong> — represents an object's current mode as an object; Memento snapshots state to <em>rewind</em> it rather than to switch behavior.</li>
+</ul>
+<p>Reach for Memento when you need <strong>undo/rollback, checkpoints, or history</strong> and you want to snapshot an object's state without breaking its encapsulation.</p>
+</body>
+</html>

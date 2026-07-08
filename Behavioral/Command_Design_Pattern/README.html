@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Command Design Pattern</title>
+  <style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
+h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
+h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
+h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
+h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
+pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+th { background: #e8eef8; font-weight: bold; }
+a  { color: #2a5ea8; }
+ul, ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+<h1 id="command-design-pattern">Command Design Pattern</h1>
+<h2 id="intent">Intent</h2>
+<p>Turn a <strong>request into an object</strong>. Instead of calling a method directly, you wrap "the thing to do" in a command object that knows <em>which</em> receiver to act on and <em>what</em> to do to it. Because the request is now an object, you can pass it around, store it, queue it, log it, undo it, or hand it to something that fires it later without knowing what it does.</p>
+<p>Here the requests are <strong>remote-control actions</strong> (turn on, turn off, adjust volume, change channel), the things being controlled are <strong>devices</strong> (a <code>TV</code>, a <code>Stereo</code>), and the <strong><code>RemoteControl</code></strong> presses a button without knowing anything about the device behind it.</p>
+<h2 id="uml-class-diagram">UML class diagram</h2>
+<pre><code> &lt;&lt;interface&gt;&gt; Command          &lt;&lt;interface&gt;&gt; Device
+ | +execute() |                 | +turnOn() +turnOff() |
+    ^   ^   ^   ^                   ^            ^
+    |   |   |   |                   |            |
+TurnOn TurnOff AdjustVolume ChangeChannel      TV        Stereo
+ (Device) (Device) (Stereo)   (TV)         +changeChannel +adjustVolume
+    \      |        |        /
+     bound receiver + action
+        +----------------+
+        | RemoteControl  |  (invoker)
+        | -command       |
+        | +setCommand()  |
+        | +pressButton() |--&gt; command.execute() --&gt; receiver method
+        +----------------+
+</code></pre>
+<hr />
+<h2 id="the-four-roles-this-pattern-is-defined-by-them">The four roles (this pattern is defined by them)</h2>
+<pre><code>controller/Command                         the COMMAND     — the request interface: execute()
+controller/concrets/TurnOnCommand          CONCRETE COMMANDS — each binds a receiver + an action
+                   /TurnOffCommand
+                   /AdjustVolumeCommand
+                   /ChangeChannelCommand
+receiver/Device (+ concrets/TV, Stereo)    the RECEIVER    — the object that does the real work
+invoker/RemoteControl                       the INVOKER     — holds a command and triggers it
+CommandDesignPattern (main)                 the CLIENT      — wires receivers, commands, invoker
+</code></pre>
+<ul>
+<li><strong>Command</strong> — a common interface with a single <code>execute()</code>.</li>
+<li><strong>Concrete Command</strong> — a small class that remembers <em>which receiver</em> and <em>which method</em> to call, and does so in <code>execute()</code>.</li>
+<li><strong>Receiver</strong> — the object that actually knows how to perform the work (the TV, the stereo).</li>
+<li><strong>Invoker</strong> — triggers a command (<code>pressButton()</code>) without knowing what the command does or who the receiver is.</li>
+<li><strong>Client</strong> — creates the receivers and commands and assigns commands to the invoker.</li>
+</ul>
+<hr />
+<h2 id="the-code-line-by-line">The code, line by line</h2>
+<h3 id="command-the-request-interface"><code>Command</code> — the request interface</h3>
+<pre><code class="language-java">public interface Command {
+    public void execute();
+}
+</code></pre>
+<ul>
+<li>One method: <strong><code>execute()</code></strong> — "do the thing." Every request in this system is represented as an object implementing this interface.</li>
+<li>This is what makes a request first-class: anything that can hold a <code>Command</code> can trigger <em>any</em> action uniformly, without a giant <code>switch</code> over action types.</li>
+</ul>
+<h3 id="device-tv-stereo-the-receivers"><code>Device</code>, <code>TV</code>, <code>Stereo</code> — the receivers</h3>
+<pre><code class="language-java">public interface Device {
+    void turnOn();
+    void turnOff();
+}
+
+public class TV implements Device {
+    @Override public void turnOn()  { System.out.println(&quot;TV is now on&quot;); }
+    @Override public void turnOff() { System.out.println(&quot;TV is now off&quot;); }
+    public void changeChannel()     { System.out.println(&quot;Channel changed&quot;); }
+}
+
+public class Stereo implements Device {
+    @Override public void turnOn()  { System.out.println(&quot;Stereo is now on&quot;); }
+    @Override public void turnOff() { System.out.println(&quot;Stereo is now off&quot;); }
+    public void adjustVolume()      { System.out.println(&quot;Volume adjusted&quot;); }
+}
+</code></pre>
+<ul>
+<li>The <strong>receivers contain the actual behavior</strong> — they know how to turn on, change a channel, adjust volume. The commands don't <em>do</em> the work; they <em>delegate</em> to a receiver that does.</li>
+<li><code>turnOn()</code>/<code>turnOff()</code> are shared across all devices, so they live in the <strong><code>Device</code> interface</strong>. <code>changeChannel()</code> (TV-only) and <code>adjustVolume()</code> (Stereo-only) are device-specific, so they live only on the concrete classes. This split matters for how the commands are typed (below).</li>
+</ul>
+<h3 id="the-concrete-commands">The concrete commands</h3>
+<pre><code class="language-java">public class TurnOnCommand implements Command {
+    private Device device;
+    public TurnOnCommand(Device device) { this.device = device; }
+    @Override public void execute() { device.turnOn(); }
+}
+
+public class TurnOffCommand implements Command {
+    private Device device;
+    public TurnOffCommand(Device device) { this.device = device; }
+    @Override public void execute() { device.turnOff(); }
+}
+
+public class AdjustVolumeCommand implements Command {
+    private Stereo stereo;
+    public AdjustVolumeCommand(Stereo stereo) { this.stereo = stereo; }
+    @Override public void execute() { stereo.adjustVolume(); }
+}
+
+public class ChangeChannelCommand implements Command {
+    private TV tv;
+    public ChangeChannelCommand(TV tv) { this.tv = tv; }
+    @Override public void execute() { tv.changeChannel(); }
+}
+</code></pre>
+<p>Each concrete command is the same tiny shape, and that shape <em>is</em> the pattern:</p>
+<ul>
+<li><strong>It stores a reference to its receiver</strong> (a <code>Device</code>, <code>Stereo</code>, or <code>TV</code>) — this is the "who to act on," captured at construction time.</li>
+<li><strong>Its <code>execute()</code> calls one method on that receiver</strong> — this is the "what to do." The command is essentially a bound (receiver, action) pair frozen into an object.</li>
+<li><strong>Notice the receiver types differ on purpose:</strong></li>
+<li><code>TurnOnCommand</code>/<code>TurnOffCommand</code> take the <strong><code>Device</code> interface</strong> — because <em>every</em> device can be turned on/off, so these commands work polymorphically with a TV, a Stereo, or any future device.</li>
+<li><code>AdjustVolumeCommand</code> takes a <strong><code>Stereo</code></strong> and <code>ChangeChannelCommand</code> takes a <strong><code>TV</code></strong> — because those actions exist only on those concrete receivers, so the command is typed to the receiver that actually offers the method.</li>
+</ul>
+<h3 id="remotecontrol-the-invoker"><code>RemoteControl</code> — the invoker</h3>
+<pre><code class="language-java">public class RemoteControl {
+    private Command command;
+
+    public void setCommand(Command command) { this.command = command; }
+
+    public void pressButton() {
+        if (command != null) {
+            command.execute();
+        } else {
+            System.out.println(&quot;No command assigned&quot;);
+        }
+    }
+}
+</code></pre>
+<ul>
+<li><strong><code>setCommand(...)</code></strong> — you load a command into the remote. The remote holds it <strong>by the <code>Command</code> interface</strong>, so it can hold <em>any</em> command.</li>
+<li><strong><code>pressButton()</code></strong> — the invoker's trigger. It just calls <code>command.execute()</code>. Critically, the remote has <strong>no idea</strong> whether it's turning on a TV or adjusting a stereo's volume — it only knows "I have a command; fire it." That ignorance is the entire benefit (see <em>Why</em> below).</li>
+<li>The <code>null</code> guard makes an unassigned button harmless ("No command assigned") instead of a <code>NullPointerException</code>.</li>
+</ul>
+<h3 id="commanddesignpattern-the-client"><code>CommandDesignPattern</code> — the client</h3>
+<pre><code class="language-java">TV tv = new TV();
+Stereo stereo = new Stereo();
+
+Command turnOnTV     = new TurnOnCommand(tv);
+Command turnOffTV    = new TurnOffCommand(tv);
+Command adjustVolume = new AdjustVolumeCommand(stereo);
+Command changeChannel= new ChangeChannelCommand(tv);
+
+RemoteControl remote = new RemoteControl();
+
+remote.setCommand(turnOnTV);     remote.pressButton();
+remote.setCommand(adjustVolume); remote.pressButton();
+remote.setCommand(changeChannel);remote.pressButton();
+remote.setCommand(turnOffTV);    remote.pressButton();
+</code></pre>
+<ul>
+<li>The <strong>client does the wiring</strong>: it creates the receivers, builds commands that bind actions to those receivers, and assigns commands to the invoker.</li>
+<li>Then the <strong>same</strong> <code>pressButton()</code> produces four different behaviors, depending only on which command is currently loaded.</li>
+</ul>
+<p><strong>Console output:</strong></p>
+<pre><code>Command Design Pattern
+TV is now on
+Volume adjusted
+Channel changed
+TV is now off
+</code></pre>
+<hr />
+<h2 id="why-the-design-decisions">Why the design decisions</h2>
+<h3 id="why-turn-a-method-call-into-an-object-at-all">Why turn a method call into an object at all?</h3>
+<p>A direct call — <code>tv.turnOn()</code> — happens <em>right now</em> and can't be stored, passed, or reasoned about. Wrapping it as an object (<code>new TurnOnCommand(tv)</code>) makes the request something you can <strong>hold and manipulate</strong>: put it in a variable, store it in a list, queue it, log it, schedule it, or attach <code>undo()</code> to it later. Everything Command enables (undo/redo, macros, queues, transactional replay) flows from this one idea: <em>the request is now data.</em></p>
+<h3 id="why-does-the-invoker-hold-a-command-and-not-the-receiver">Why does the invoker hold a <code>Command</code> and not the receiver?</h3>
+<p>To <strong>decouple the trigger from the work.</strong> <code>RemoteControl</code> knows nothing about TVs or stereos — it depends only on the <code>Command</code> interface. That means:<br />
+- the same remote can trigger <em>any</em> action, present or future, and<br />
+- adding a new action (e.g. <code>MuteCommand</code>) requires <strong>zero changes</strong> to <code>RemoteControl</code>.</p>
+<p>If the remote called <code>tv.turnOn()</code> directly, it would be welded to the TV and would need editing for every new device or action. Command breaks that coupling: the invoker fires requests without knowing what they are.</p>
+<h3 id="why-does-each-command-store-its-receiver">Why does each command store its receiver?</h3>
+<p>Because a command must know <em>what to act on</em> when it's eventually executed — possibly long after it was created, by an invoker that has no reference to the receiver. Binding the receiver into the command at construction time makes the command <strong>self-contained</strong>: <code>execute()</code> needs no arguments and no external context. That self-containment is what lets you queue or defer commands.</p>
+<h3 id="why-do-the-commands-accept-the-receiver-by-interface-where-possible">Why do the commands accept the receiver by <em>interface</em> where possible?</h3>
+<p><code>TurnOnCommand(Device)</code> accepts the interface so one command class works for <em>every</em> device — turning on is universal, so there's no reason to tie the command to <code>TV</code>. <code>AdjustVolumeCommand(Stereo)</code> accepts the concrete type only because <code>adjustVolume()</code> isn't part of <code>Device</code>. The rule: <strong>depend on the narrowest type that still exposes the method you need</strong> — the interface when the action is shared, the concrete class when the action is specific.</p>
+<h3 id="why-the-null-check-in-pressbutton">Why the <code>null</code> check in <code>pressButton()</code>?</h3>
+<p>Defensive robustness. An invoker can exist with no command loaded (a freshly-made remote, or a button that was never programmed). Handling that case gracefully ("No command assigned") is friendlier than crashing, and it documents that a command is optional state on the invoker.</p>
+<hr />
+<h2 id="execution-flow-the-demo">Execution flow (the demo)</h2>
+<pre><code>main (client wires everything)
+ │
+ ├── remote.setCommand(turnOnTV)         invoker now holds TurnOnCommand(tv)
+ ├── remote.pressButton()
+ │        └── command.execute()  →  TurnOnCommand.execute()  →  tv.turnOn()     → &quot;TV is now on&quot;
+ │
+ ├── remote.setCommand(adjustVolume)     invoker now holds AdjustVolumeCommand(stereo)
+ ├── remote.pressButton()
+ │        └── command.execute()  →  AdjustVolumeCommand.execute()  →  stereo.adjustVolume() → &quot;Volume adjusted&quot;
+ │
+ ├── remote.setCommand(changeChannel)    invoker now holds ChangeChannelCommand(tv)
+ ├── remote.pressButton()
+ │        └── command.execute()  →  ChangeChannelCommand.execute()  →  tv.changeChannel()  → &quot;Channel changed&quot;
+ │
+ └── remote.setCommand(turnOffTV)        invoker now holds TurnOffCommand(tv)
+     remote.pressButton()
+              └── command.execute()  →  TurnOffCommand.execute()  →  tv.turnOff()  → &quot;TV is now off&quot;
+</code></pre>
+<p>The invoker does the identical thing every time (<code>command.execute()</code>); the varying behavior comes entirely from <em>which command object</em> is loaded — and the invoker never learns what any of them actually do.</p>
+<hr />
+<h2 id="notes-possible-extensions-not-changed-in-the-code">Notes / possible extensions (not changed in the code)</h2>
+<ul>
+<li><strong>Undo/redo.</strong> The classic Command extension is adding <code>undo()</code> to the interface; each command remembers enough to reverse itself (often by holding a <strong>Memento</strong> of the receiver's prior state). A history stack of executed commands then gives multi-level undo.</li>
+<li><strong>Macro commands.</strong> A <code>MacroCommand</code> that holds a <code>List&lt;Command&gt;</code> and calls <code>execute()</code> on each lets you compose several requests into one — "movie mode" that dims lights, turns on the TV, and sets the stereo in a single button press.</li>
+<li><strong>Queuing / logging / scheduling.</strong> Because commands are objects, an invoker can push them onto a queue, run them on a worker thread, persist them to a log, or replay them — the basis of job queues and transactional systems.</li>
+<li><strong>Lambdas.</strong> <code>Command</code> is a single-method (functional) interface, so <code>remote.setCommand(tv::turnOn)</code> works identically — a method reference is a lightweight command.</li>
+<li><strong>Plain <code>main</code>, no Spring</strong> — the pattern is pure OO structure and needs no container.</li>
+</ul>
+<hr />
+<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<ul>
+<li><strong>Command (this module)</strong> — package a request as an object so it can be stored, passed, queued, and undone; decouples the invoker from the receiver.</li>
+<li><strong>Memento</strong> — commonly paired with Command to implement <code>undo()</code> (the command snapshots the receiver's prior state).</li>
+<li><strong>Strategy</strong> — also wraps behavior in an object, but represents <em>how to do</em> one interchangeable algorithm, not <em>a request to be triggered/queued/undone</em> on a receiver.</li>
+<li><strong>Chain of Responsibility</strong> — passes one request along handlers until one handles it; Command instead hands a fully-bound request to a single invoker to fire.</li>
+</ul>
+<p>Reach for Command when you want to <strong>parameterize objects with actions</strong>, <strong>queue or schedule</strong> requests, support <strong>undo/redo or macros</strong>, or simply decouple the object that triggers an operation from the object that performs it.</p>
+</body>
+</html>

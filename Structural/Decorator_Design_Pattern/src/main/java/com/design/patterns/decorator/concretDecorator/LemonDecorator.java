@@ -7,12 +7,10 @@ public class LemonDecorator extends BeverageDecorator {
 
 	public LemonDecorator(Beverage _beverage) {
 		super(_beverage);
-		// TODO Auto-generated constructor stub
 	}
 
 	@Override
 	public void decorateBeverage() {
-		// TODO Auto-generated method stub
 		super.decorateBeverage();
 		decorateLemon();
 	}
@@ -23,13 +21,11 @@ public class LemonDecorator extends BeverageDecorator {
 
 	@Override
 	public int getIncrementPrice() {
-		// TODO Auto-generated method stub
 		return 10;
 	}
 
 	@Override
 	public String getDecoratedName() {
-		// TODO Auto-generated method stub
 		return "lemon";
 	}
 
