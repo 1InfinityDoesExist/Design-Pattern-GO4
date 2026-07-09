@@ -25,7 +25,7 @@ The four structural roles are:
 | Role | This project |
 |---|---|
 | Strategy (interface) | `OperationStrategy` |
-| Concrete Strategy | `AdditionOperationStrategy`, `SubstractionOperationStrategy`, `MultiplicationOperationStrategy`, `DivisionOperationStrategy` |
+| Concrete Strategy | `AdditionOperationStrategy`, `SubtractionOperationStrategy`, `MultiplicationOperationStrategy`, `DivisionOperationStrategy` |
 | Context | `Calculator` |
 | Client | `DesignPatternsApplication.main()` |
 
@@ -52,7 +52,7 @@ The four structural roles are:
  └────────────────────────┘            ┌────────────┼────────────┬──────────────────┐
                                         │            │            │                  │
                            ┌────────────────┐ ┌──────────────┐ ┌────────────────┐ ┌──────────────┐
-                           │  Addition-     │ │ Substraction- │ │ Multiplication-│ │ Division-    │
+                           │  Addition-     │ │ Subtraction- │ │ Multiplication-│ │ Division-    │
                            │  Operation-    │ │ Operation-    │ │ Operation-     │ │ Operation-   │
                            │  Strategy      │ │ Strategy      │ │ Strategy       │ │ Strategy     │
                            ├────────────────┤ ├──────────────┤ ├────────────────┤ ├──────────────┤
@@ -69,7 +69,7 @@ The four structural roles are:
 
 - **`AdditionOperationStrategy`** (Concrete Strategy) — implements `OperationStrategy` by returning `x + y`.
 
-- **`SubstractionOperationStrategy`** (Concrete Strategy) — implements `OperationStrategy` by returning `x - y`.
+- **`SubtractionOperationStrategy`** (Concrete Strategy) — implements `OperationStrategy` by returning `x - y`.
 
 - **`MultiplicationOperationStrategy`** (Concrete Strategy) — implements `OperationStrategy` by returning `x * y`.
 
@@ -152,14 +152,14 @@ public class AdditionOperationStrategy implements OperationStrategy {
 
 ---
 
-### `SubstractionOperationStrategy.java`
+### `SubtractionOperationStrategy.java`
 
 ```java
 package com.design.patterns.strategy.concretStrategy;
 
 import com.design.patterns.strategy.OperationStrategy;
 
-public class SubstractionOperationStrategy implements OperationStrategy {
+public class SubtractionOperationStrategy implements OperationStrategy {
 
 	@Override
 	public int doOperation(int x, int y) {
@@ -178,7 +178,7 @@ public class SubstractionOperationStrategy implements OperationStrategy {
 
 - *(blank line)* — Separates the import block from the class declaration.
 
-- `public class SubstractionOperationStrategy implements OperationStrategy {` — Declares the subtraction concrete strategy. The class name encodes both the operation (`Substraction`) and the role (`OperationStrategy`), making its purpose immediately readable in any code that instantiates it. The opening `{` begins the class body. *(Note: the canonical English spelling is "Subtraction" with one `s`; the name here preserves the source as written.)*
+- `public class SubtractionOperationStrategy implements OperationStrategy {` — Declares the subtraction concrete strategy. The class name encodes both the operation (`Subtraction`) and the role (`OperationStrategy`), making its purpose immediately readable in any code that instantiates it. The opening `{` begins the class body.
 
 - *(blank line)* — Blank line for readability inside the class body.
 
@@ -190,7 +190,7 @@ public class SubstractionOperationStrategy implements OperationStrategy {
 
 - `	}` — Closes the `doOperation` method body.
 
-- `}` — Closes the `SubstractionOperationStrategy` class body.
+- `}` — Closes the `SubtractionOperationStrategy` class body.
 
 ---
 

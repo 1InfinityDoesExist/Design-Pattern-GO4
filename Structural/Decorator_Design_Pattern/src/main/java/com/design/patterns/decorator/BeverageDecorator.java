@@ -10,8 +10,6 @@ public abstract class BeverageDecorator extends Beverage {
 		this.beverage = beverage;
 	}
 
-	// name and price are computed by delegating to the wrapped beverage,
-	// so they stay correct no matter how deep the wrapping goes
 	@Override
 	public String getName() {
 		return beverage.getName() + ":" + getDecoratedName();

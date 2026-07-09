@@ -11,7 +11,6 @@ public class RealImage implements Image {
 		loadFromDisk();
 	}
 
-	// the expensive operation the proxy exists to defer
 	private void loadFromDisk() {
 		System.out.println("-----Loading image from disk: " + fileName);
 	}

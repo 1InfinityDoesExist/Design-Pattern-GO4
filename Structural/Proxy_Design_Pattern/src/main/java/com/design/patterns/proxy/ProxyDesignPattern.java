@@ -10,10 +10,8 @@ public class ProxyDesignPattern {
 
 		Image image = new ProxyImage("holiday-photo.png");
 
-		// first call: proxy loads the real image lazily, then displays
 		image.display();
 
-		// second call: no reload — the proxy reuses the already-loaded subject
 		image.display();
 	}
 }

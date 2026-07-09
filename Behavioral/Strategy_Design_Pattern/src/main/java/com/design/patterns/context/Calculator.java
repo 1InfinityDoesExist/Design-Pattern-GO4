@@ -10,7 +10,6 @@ public class Calculator {
 		this.operationStrategy = operationStrategy;
 	}
 
-	// strategies are interchangeable at runtime on the same context
 	public void setOperationStrategy(OperationStrategy operationStrategy) {
 		this.operationStrategy = operationStrategy;
 	}

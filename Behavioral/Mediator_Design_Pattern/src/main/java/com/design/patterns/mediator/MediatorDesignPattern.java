@@ -15,7 +15,6 @@ public class MediatorDesignPattern {
 		IAirplane flight101 = new CommercialAirplane("Flight-101", controlTower);
 		IAirplane flight202 = new CommercialAirplane("Flight-202", controlTower);
 
-		// airplanes never talk to each other directly — the tower coordinates
 		flight101.requestTakeoff();
 		flight202.requestLanding();
 	}

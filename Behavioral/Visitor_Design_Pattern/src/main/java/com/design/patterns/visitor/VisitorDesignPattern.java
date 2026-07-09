@@ -18,8 +18,6 @@ public class VisitorDesignPattern {
 		List<IEmployeeElement> employees = List.of(new InternEmployee(), new FullTimeEmployee(),
 				new ContractEmployee());
 
-		// two operations over the same element structure — each visitor is
-		// dispatched to the right overload via accept() (double dispatch)
 		for (IEmployeeVisitors visitor : List.of(new TaxVisitor(), new PerformanceReportVisitor())) {
 			employees.forEach(employee -> employee.accept(visitor));
 		}

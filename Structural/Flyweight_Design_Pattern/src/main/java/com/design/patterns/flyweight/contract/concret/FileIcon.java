@@ -4,7 +4,6 @@ import com.design.patterns.flyweight.contract.Icon;
 
 public class FileIcon implements Icon {
 
-	// intrinsic state: shared by every placement of a file icon
 	private final String color = "BLUE";
 
 	@Override

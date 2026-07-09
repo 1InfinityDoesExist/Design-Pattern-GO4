@@ -11,8 +11,6 @@ public class BridgeDesignPattern {
 	public static void main(String[] args) {
 		System.out.println("Bridge Design Pattern");
 
-		// both hierarchies vary independently: 2 shapes x 2 colors,
-		// with no TriangleRed/TriangleBlue/CircleRed/CircleBlue subclasses
 		Shape[] shapes = { new Triangle(new Red()), new Triangle(new Blue()),
 				new Circle(new Red()), new Circle(new Blue()) };
 

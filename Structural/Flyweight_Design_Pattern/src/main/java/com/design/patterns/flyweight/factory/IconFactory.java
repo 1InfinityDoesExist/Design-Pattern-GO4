@@ -12,10 +12,6 @@ public class IconFactory {
 
 	private final Map<IconType, Icon> pool = new EnumMap<>(IconType.class);
 
-	/**
-	 * Lazily creates one flyweight per type on first request; every later
-	 * request for the same type returns the same shared instance.
-	 */
 	public Icon getIcon(IconType type) {
 		return pool.computeIfAbsent(type, IconFactory::create);
 	}

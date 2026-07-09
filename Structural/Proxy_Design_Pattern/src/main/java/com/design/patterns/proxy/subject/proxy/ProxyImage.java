@@ -15,7 +15,7 @@ public class ProxyImage implements Image {
 	@Override
 	public void display() {
 		System.out.println("----Calling via proxy");
-		// virtual proxy: the expensive RealImage is created only on first use
+
 		if (realImage == null) {
 			realImage = new RealImage(fileName);
 		}

@@ -2,31 +2,26 @@
 
 ## Intent
 
-Define an interface for creating an object, but let the *factory* decide which concrete class to instantiate. The caller asks for a product **by a key** (here an enum) and gets back the right implementation without ever naming the concrete class or calling `new` on it.
+Define an interface for creating an object, but let **subclasses decide which concrete class to instantiate**. The creator's algorithm (`render()`) works against the abstract product (`Shape`); the *factory method* (`createShape()`) is the single point each subclass overrides to supply its own product.
 
-This implementation is the **Spring-idiomatic, self-registering** variant: every product is a Spring `@Component`, they are all injected as a `List`, and the factory indexes them into an `EnumMap`. Adding a new shape requires **zero changes** to the factory.
+This is the **canonical GoF Factory Method**: an abstract `ShapeCreator` with one abstract creation step, and one concrete creator per product. The client picks a creator, never a product — it calls `new` on `CircleCreator`, but never on `Circle`.
 
 ## UML class diagram
 
 ```
-            <<interface>> Shape
-            +------------------+
-            | +draw()          |
-            | +getDesignType() |
-            +---------^--------+
-                      | implements
-        +---------+---+-----+----------+
-        |         |         |          |
-    +---+--+  +---+-----+ +-+-------+  |
-    |Circle|  |Rectangle| |Triangle |  |
-    +------+  +---------+ +---------+  |
-                      collected into   |
-        +------------------------------+--+
-        |            ShapeFactory         |
-        +---------------------------------+
-        | - shapeMap : EnumMap<DesignType,Shape>
-        | + getShape(DesignType) : Shape  |
-        +---------------------------------+
+        <<abstract>> ShapeCreator                 <<interface>> Shape
+        +--------------------------+              +------------------+
+        | +createShape() : Shape   |  - - uses -> | +draw()          |
+        | +render()                |              | +getDesignType() |
+        +------------^-------------+              +---------^--------+
+                     | extends                              | implements
+      +--------------+---------------+           +----------+-----------+
+      |              |               |           |          |           |
++-----+-------+ +----+---------+ +---+--------+ ++-----+ +--+------+ +--+------+
+|CircleCreator| |TriangleCreator| |RectangleCreator| |Circle| |Triangle | |Rectangle|
++-------------+ +--------------+ +-------------+ +------+ +---------+ +---------+
+  createShape()    createShape()     createShape()
+  → new Circle()   → new Triangle()  → new Rectangle()
 ```
 
 ---
@@ -34,35 +29,20 @@ This implementation is the **Spring-idiomatic, self-registering** variant: every
 ## The players
 
 ```
-enums/DesignType                         the key (CIRCLE, TRIANGLE, RECTANGLE)
+enums/DesignType                         each product's self-declared identity (CIRCLE, TRIANGLE, RECTANGLE)
 factory/contract/Shape                   the product interface
-factory/contract/concret/Circle          concrete products, each an @Component
+factory/contract/concret/Circle          concrete products
                         /Rectangle
                         /Triangle
-factory/ShapeFactory                     the factory — maps DesignType → Shape
+factory/ShapeCreator                     the abstract creator — declares createShape(), owns render()
+factory/creators/CircleCreator           concrete creators — one per product, each overrides createShape()
+                /RectangleCreator
+                /TriangleCreator
 ```
 
 ---
 
 ## The code, line by line
-
-### `DesignType` — the key enum
-
-```java
-public enum DesignType {
-	CIRCLE("CIRCLE"), TRIANGLE("TRIANGLE"), RECTANGLE("RECTANGLE");
-
-	private String name;
-
-	private DesignType(String name) { this.name = name; }
-
-	@JsonValue
-	public String getName() { return name; }
-}
-```
-
-- An `enum` is the discriminator that tells the factory *which* product you want. Using an enum instead of a `String` gives you **compile-time safety** — you can't ask for a shape that doesn't exist, and it makes the `EnumMap` (below) possible.
-- `@JsonValue` — when this enum is serialized to/from JSON (e.g. as a request field), Jackson uses `getName()` as its wire value instead of the default `name()`. Not needed by the pattern itself; it's there so the enum is API-friendly.
 
 ### `Shape` — the product interface
 
@@ -73,88 +53,75 @@ public interface Shape {
 }
 ```
 
-- `draw()` is the actual behavior a product offers.
-- `getDesignType()` is the key idea that makes self-registration work: **each product declares its own key.** The factory doesn't need a big switch mapping classes to enums — it just asks each product "what are you?".
+- `draw()` is the behavior every product offers; it's what the creator's `render()` ultimately calls.
+- `getDesignType()` lets each product declare its own identity (`Circle` says `CIRCLE`), so nothing outside the product needs a mapping table.
 
 ### `Circle` / `Rectangle` / `Triangle` — concrete products
 
 ```java
-@Component
 public class Circle implements Shape {
 	@Override public void draw() { System.out.println("Shape is circle."); }
 	@Override public DesignType getDesignType() { return DesignType.CIRCLE; }
 }
 ```
 
-- `@Component` — registers each shape as a Spring bean. This is what lets Spring discover them all and inject them as a list. Without it, the factory would have nothing to collect.
-- `getDesignType()` returns *this* product's identity. `Circle` says `CIRCLE`, `Triangle` says `TRIANGLE`, and so on.
+- Plain classes — the pattern needs nothing more. Only the concrete *creator* knows which one gets instantiated.
 
-### `ShapeFactory` — the factory itself
+### `ShapeCreator` — the abstract creator
 
 ```java
-@Component
-public class ShapeFactory {
+public abstract class ShapeCreator {
 
-	private final EnumMap<DesignType, Shape> shapeMap;
-	private final Shape defaultShape;
+	public abstract Shape createShape();
 
-	public ShapeFactory(List<? extends Shape> shapes, Circle circle) {
-		this.defaultShape = Objects.requireNonNull(circle, "default circle must not be null");
-		this.shapeMap = shapes.stream().collect(Collectors.toMap(
-				Shape::getDesignType,                 // key   = each product's own type
-				Function.identity(),                  // value = the product itself
-				(a, b) -> b,                          // merge = if duplicate key, keep the later one
-				() -> new EnumMap<>(DesignType.class))); // backing map = EnumMap
-	}
-
-	public Shape getShape(final DesignType designType) {
-		return shapeMap.getOrDefault(designType, defaultShape);
+	public void render() {
+		Shape shape = createShape();
+		shape.draw();
 	}
 }
 ```
 
-**Constructor — `List<? extends Shape> shapes`:**
-- Spring injects **every** bean that implements `Shape` as a list. This is the crux of self-registration: the factory never mentions `Circle`, `Rectangle`, `Triangle` by name (except for the default). New implementations get picked up automatically just by being `@Component`s.
-- `Circle circle` is injected separately to serve as the **default/fallback** product.
+- `createShape()` **is the factory method** — the one deferred decision. It returns the abstract `Shape`, so nothing in this class ever names a concrete product.
+- `render()` is the **template step** that makes the pattern useful: it contains the creator's real algorithm (create, then draw). Subclasses inherit the algorithm and customize only the creation step. If `render()` grew (validate → create → draw → log), every creator would gain those steps for free.
 
-**Building the map with a stream + `Collectors.toMap`:**
-- `Shape::getDesignType` — the key extractor. Each shape is filed under the key *it* reports.
-- `Function.identity()` — the value is the shape object itself (`x -> x`).
-- `(a, b) -> b` — the **merge function**. `toMap` throws on duplicate keys unless you supply one; this says "if two shapes claim the same `DesignType`, keep the second." It prevents a startup crash if a key is accidentally duplicated.
-- `() -> new EnumMap<>(DesignType.class)` — the **map supplier**. Forces the result to be an `EnumMap` instead of the default `HashMap`.
+### `CircleCreator` / `TriangleCreator` / `RectangleCreator` — concrete creators
 
-**`getShape(...)`:**
-- `getOrDefault(designType, defaultShape)` — one clean line: look the key up, and if nothing is registered for it, hand back the default `Circle` instead of `null`. The caller never has to null-check.
+```java
+public class CircleCreator extends ShapeCreator {
+
+	@Override
+	public Shape createShape() {
+		return new Circle();
+	}
+}
+```
+
+- One line of real logic: `new Circle()`. This is the **only place in the module where a concrete product is constructed.** The other two creators are identical except for the product they `new`.
+- The return type stays `Shape` (not `Circle`) — callers get the abstraction even from the concrete creator.
 
 ---
 
 ## Why the design decisions
 
-### Why an `EnumMap` instead of a `switch` or a `HashMap`?
+### Why an abstract class + subclasses instead of one factory with a `switch`/map?
 
-- **vs. `switch`** — a `switch(designType)` with a `case` per shape means the factory has to be **edited every time** you add a shape (Open/Closed Principle violation). The map-based approach means a new shape is discovered automatically; the factory code is closed for modification. This is the exact refactor this project standardized on ("stop using switch cases, use EnumMap").
-- **vs. `HashMap`** — `EnumMap` is purpose-built for enum keys. Internally it is backed by a plain array indexed by the enum's `ordinal()`, so lookups are array-index-fast with no hashing and no collisions, and it uses less memory. Whenever the key is an enum, `EnumMap` is the right container.
+Because the *variation point is the creation itself*, and Factory Method places that variation in the type system:
 
-### Why inject a `List<? extends Shape>` (self-registration)?
+- Adding `Hexagon` = add `Hexagon implements Shape` + `HexagonCreator extends ShapeCreator`. **No existing file is edited** — Open/Closed by construction, no central registry to grow.
+- Each creator can later specialize more than construction (cache its product, pre-configure it, read settings) without touching its siblings.
+- A key-indexed factory (enum → instance map) answers a different question — "give me the product for this key at runtime." That variant belongs to a *parameterized* factory; this module demonstrates the GoF subclassing form.
 
-Because it inverts the dependency. A hand-written factory *knows about* all its products (it imports and `new`s them). Here the factory knows about **none** of them — it just receives whatever `Shape` beans exist and files them by their self-reported key. Adding `Hexagon`:
+### Why does `render()` live in the abstract creator?
 
-1. create `Hexagon implements Shape`, annotate `@Component`, return `DesignType.HEXAGON`;
-2. add `HEXAGON` to the enum.
+That's the point of the pattern: **the creator is not just a maker, it's a user of its own product.** `render()` is code written once against `Shape` that works for every current and future subclass. The factory method exists so this shared algorithm can create the right product without knowing its class.
 
-That's it — **`ShapeFactory` is never touched.**
+### Why does `createShape()` return `Shape` and not the concrete type?
 
-### Why each product reports its own `getDesignType()`?
+So the inherited `render()` — and any caller — stays coupled only to the abstraction. The concrete class name appears exactly once, inside its creator.
 
-So the factory doesn't need any external mapping table. The alternative (a central "Circle→CIRCLE" registry) duplicates knowledge and drifts out of sync. Letting the product own its key keeps the single source of truth inside the product.
+### Why do products still carry `getDesignType()`?
 
-### Why a default shape via `getOrDefault`?
-
-Robustness. If someone asks for a `DesignType` that has no registered implementation, returning a sensible default is friendlier than returning `null` and forcing every caller to guard against `NullPointerException`. `Objects.requireNonNull` in the constructor guarantees the default itself is never null.
-
-### Why `final` fields?
-
-`shapeMap` and `defaultShape` are set once in the constructor and never change. Marking them `final` makes the factory **immutable after construction** and therefore inherently thread-safe to read — no synchronization needed for concurrent `getShape()` calls.
+Each product self-describes its identity. Nothing in the creator flow needs it, but it keeps a product's key with the product itself — the single source of truth if a lookup table (or serialization) is ever layered on top.
 
 ---
 
@@ -163,25 +130,25 @@ Robustness. If someone asks for a `DesignType` that has no registered implementa
 ```
 DesignPatternsApplication.main
         │
-        ├── SpringApplication.run(...)                   Spring starts, discovers @Components
-        │        └── constructs Circle, Rectangle, Triangle beans
-        │        └── constructs ShapeFactory, injecting List[Circle,Rectangle,Triangle] + Circle
-        │                 └── builds EnumMap { CIRCLE→Circle, TRIANGLE→Triangle, RECTANGLE→Rectangle }
+        ├── SpringApplication.run(...)        boots the app (the pattern itself doesn't need Spring)
         │
-        ├── context.getBean(ShapeFactory.class)          fetch the factory from the context
+        ├── List.of(new CircleCreator(), new TriangleCreator(), new RectangleCreator())
+        │        └── the client chooses CREATORS, never products
         │
-        └── shapeFactory.getShape(DesignType.TRIANGLE)
-                   └── shapeMap.getOrDefault(TRIANGLE, circle) → Triangle bean
-                          └── .draw() → prints "Shape is triangle"
+        └── creators.forEach(ShapeCreator::render)
+                 ├── CircleCreator.render()
+                 │        └── createShape() → new Circle()  → draw() → "Shape is circle."
+                 ├── TriangleCreator.render()
+                 │        └── createShape() → new Triangle() → draw() → "Shape is triangle."
+                 └── RectangleCreator.render()
+                          └── createShape() → new Rectangle() → draw() → "Shape is rectangle."
 ```
 
 ---
 
 ## Factory Method vs. Abstract Factory (so you don't confuse them)
 
-- **Factory Method (this module)** — produces **one** product from a family, chosen by a key. One axis: "which shape?"
-- **Abstract Factory** (the sibling module) — produces a **matched set** of related products (a chair *and* a table that belong together). The factory itself *is* the choice; you don't pass a key per product.
+- **Factory Method (this module)** — one product per creator, and the *subclass* is the decision. You pick the factory (`CircleCreator`), and it makes its one product.
+- **Abstract Factory** (the sibling module) — a **matched set** of related products (a chair *and* a table that belong together) behind one factory interface.
 
-If you ever find yourself passing a "type" argument into every `create...()` call, you're doing Factory Method — which is correct here, and is exactly what the Abstract Factory module was fixed **not** to do.
-
-> Note: `SpringApplication.run(...)` boots the container so the `@Component` products can be discovered and injected. The pattern itself doesn't require Spring — you could build the `EnumMap` by hand — but Spring's component scanning is what makes the self-registration automatic.
+Rule of thumb: if choosing the factory chooses one product, it's Factory Method; if choosing the factory chooses a whole family, it's Abstract Factory.

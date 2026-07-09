@@ -11,7 +11,6 @@ public class FlyweightDesignPattern {
 
 		IconFactory iconFactory = new IconFactory();
 
-		// many placements (extrinsic state), few shared objects (intrinsic state)
 		Icon file1 = iconFactory.getIcon(IconType.FILE);
 		file1.display(10, 20);
 		Icon file2 = iconFactory.getIcon(IconType.FILE);

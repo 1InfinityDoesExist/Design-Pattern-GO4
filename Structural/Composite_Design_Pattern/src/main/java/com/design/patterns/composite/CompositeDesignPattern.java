@@ -15,9 +15,8 @@ public class CompositeDesignPattern {
 
 		Directory documents = new Directory("documents");
 		documents.add(new File("resume.pdf", 2048));
-		root.add(documents); // a composite nested inside a composite
+		root.add(documents);
 
-		// client works through the Component type — leaf and composite look alike
 		FileSystemComponent fileSystem = root;
 		fileSystem.display();
 	}

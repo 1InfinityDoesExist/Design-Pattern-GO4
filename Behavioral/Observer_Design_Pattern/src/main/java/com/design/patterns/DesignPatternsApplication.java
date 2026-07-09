@@ -18,11 +18,11 @@ public class DesignPatternsApplication {
 		MessageSubscriberOne subscriberOne = new MessageSubscriberOne(publisher);
 		MessageSubscriberTwo subscriberTwo = new MessageSubscriberTwo(publisher);
 
-		publisher.setMsg("first message");   // both subscribers are notified
+		publisher.setMsg("first message");
 
 		publisher.detach(subscriberOne);
 
-		publisher.setMsg("second message");  // only SubscriberTwo is notified
+		publisher.setMsg("second message");
 	}
 
 }

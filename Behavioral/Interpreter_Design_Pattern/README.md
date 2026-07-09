@@ -13,11 +13,11 @@ Here the little language is **integer arithmetic with `+` and `-`**. A string li
       | +interpret() : int |
         ^        ^        ^
         |        |        |
- NumberExpression AddExpression SubstractExpression
+ NumberExpression AddExpression SubtractExpression
  (terminal/leaf)  | left,right | | left,right |
                   +--> left.interpret() + right.interpret()
  Context.parseExpression("5 + 3 - 2")
-   -> Substract( Add(Num 5, Num 3), Num 2 ) -> interpret() = 6
+   -> Subtract( Add(Num 5, Num 3), Num 2 ) -> interpret() = 6
 ```
 
 ---
@@ -28,7 +28,7 @@ Here the little language is **integer arithmetic with `+` and `-`**. A string li
 expressions/IExpression                          the grammar contract: interpret() → int
 expressions/terminal/NumberExpression            TERMINAL rule     — a literal number (a leaf)
 expressions/nonterminal/AddExpression            NON-TERMINAL rule — left + right
-                       /SubstractExpression       NON-TERMINAL rule — left - right
+                       /SubtractExpression       NON-TERMINAL rule — left - right
 context/Context                                  parses a string into an expression tree
 
 InterpreterDesignPattern                         the demo — parse "5 + 3 - 2", interpret it
@@ -37,7 +37,7 @@ InterpreterDesignPattern                         the demo — parse "5 + 3 - 2",
 Two kinds of grammar rules, straight out of the pattern:
 
 - **Terminal expression** — an atom that evaluates by itself (`NumberExpression`). It's a leaf of the tree.
-- **Non-terminal expression** — a rule built out of *other* expressions (`AddExpression`, `SubstractExpression`). It's an internal node with children.
+- **Non-terminal expression** — a rule built out of *other* expressions (`AddExpression`, `SubtractExpression`). It's an internal node with children.
 
 ---
 
@@ -71,7 +71,7 @@ public class NumberExpression implements IExpression {
 - Wraps a single literal integer. Its `interpret()` is the **base case** of the recursion: it just returns its own value, with no further calls.
 - These are the **leaves** of the AST — the recursion bottoms out here.
 
-### `AddExpression` / `SubstractExpression` — the non-terminal rules
+### `AddExpression` / `SubtractExpression` — the non-terminal rules
 
 ```java
 public class AddExpression implements IExpression {
@@ -92,8 +92,8 @@ public class AddExpression implements IExpression {
 ```
 
 - Each holds **two child `IExpression`s** (typed as the interface, so a child can be a number *or* another whole sub-tree).
-- **`interpret()` is recursive:** it evaluates its left child, evaluates its right child, and combines them (`+` here, `-` in `SubstractExpression`). This is the **composite recursion** that walks the tree — an internal node's value is defined in terms of its children's values.
-- `SubstractExpression` is identical except it returns `left - right`.
+- **`interpret()` is recursive:** it evaluates its left child, evaluates its right child, and combines them (`+` here, `-` in `SubtractExpression`). This is the **composite recursion** that walks the tree — an internal node's value is defined in terms of its children's values.
+- `SubtractExpression` is identical except it returns `left - right`.
 
 ### `Context` — turning a string into a tree (the parser)
 
@@ -107,7 +107,7 @@ public IExpression parseExpression(String expression) {
 		if (operator.equals("+")) {
 			result = new AddExpression(result, right);
 		} else if (operator.equals("-")) {
-			result = new SubstractExpression(result, right);
+			result = new SubtractExpression(result, right);
 		}
 	}
 	return result;
@@ -118,7 +118,7 @@ public IExpression parseExpression(String expression) {
 - **`result` starts as the first number** — `NumberExpression(5)`.
 - **The loop walks the rest in `(operator, number)` pairs** (`i += 2`): it reads an operator and the number after it, then **wraps the running `result`** as the left child and the new number as the right child. So the tree grows left-deep:
   - after `+ 3`: `result = Add( Number(5), Number(3) )`
-  - after `- 2`: `result = Substract( Add(Number(5),Number(3)), Number(2) )`
+  - after `- 2`: `result = Subtract( Add(Number(5),Number(3)), Number(2) )`
 - **`i < tokens.length - 1`** stops one short so `tokens[i + 1]` is always a valid operand — it never reads past the end.
 - The returned `result` is the **root** of the AST. Nothing has been evaluated yet — parsing only *builds* the tree; `interpret()` evaluates it.
 
@@ -176,11 +176,11 @@ tokens = [ "5", "+", "3", "-", "2" ]
 
 result = Number(5)
  i=1:  "+" 3  →  result = Add( Number(5), Number(3) )
- i=3:  "-" 2  →  result = Substract( Add(Number(5),Number(3)), Number(2) )
+ i=3:  "-" 2  →  result = Subtract( Add(Number(5),Number(3)), Number(2) )
 
 returns the root:
 
-            Substract
+            Subtract
             /        \
           Add        Number(2)
          /    \
@@ -190,7 +190,7 @@ returns the root:
 **Phase 2 — interpret (evaluate the AST):**
 
 ```
-Substract.interpret()
+Subtract.interpret()
    ├── left  = Add.interpret()
    │            ├── left  = Number(5).interpret() → 5
    │            └── right = Number(3).interpret() → 3

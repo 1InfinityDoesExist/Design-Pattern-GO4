@@ -16,8 +16,6 @@ public class DesignPatternsApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(DesignPatternsApplication.class, args);
 
-		// the client codes against the Creator abstraction; each concrete
-		// creator's factory method decides the concrete product
 		List<ShapeCreator> creators = List.of(new CircleCreator(), new TriangleCreator(), new RectangleCreator());
 		creators.forEach(ShapeCreator::render);
 	}

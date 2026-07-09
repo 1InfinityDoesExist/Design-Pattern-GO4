@@ -18,7 +18,6 @@ public class DesignPatternsApplication {
 		Calculator calculator = new Calculator(new AdditionOperationStrategy());
 		System.out.println("5 + 20 = " + calculator.calculate(5, 20));
 
-		// same context, strategies swapped at runtime
 		calculator.setOperationStrategy(new SubtractionOperationStrategy());
 		System.out.println("20 - 5 = " + calculator.calculate(20, 5));
 

@@ -18,7 +18,6 @@ public class ChainOfResponsibilityDesignPattern {
 		firstLevelSupportHandler.setNextHandler(secondLevelSupportHandler);
 		secondLevelSupportHandler.setNextHandler(thirdLevelSupportHandler);
 
-		// each request stops at the first handler able to process it
 		System.out.println("-- BASIC request --");
 		firstLevelSupportHandler.handleRequest(new Request(Priority.BASIC));
 

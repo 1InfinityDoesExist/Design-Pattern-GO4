@@ -31,7 +31,6 @@ public class MessagePublisher implements Observable {
 		return msg;
 	}
 
-	// a state change must push the news to every attached observer
 	public void setMsg(String msg) {
 		this.msg = msg;
 		notifyUpdate();

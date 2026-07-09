@@ -4,7 +4,6 @@ import com.design.patterns.flyweight.contract.Icon;
 
 public class FolderIcon implements Icon {
 
-	// intrinsic state: shared by every placement of a folder icon
 	private final String color = "RED";
 
 	@Override
