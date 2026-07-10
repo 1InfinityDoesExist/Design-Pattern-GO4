@@ -1,237 +1,251 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset='utf-8'>
   <title>Abstract Factory Design Pattern</title>
-  <style>
-@page { size: A4; margin: 2cm; }
-body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
-h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
-h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
-h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
-h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
-pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
-code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
-pre code { background: transparent; padding: 0; }
-blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
-table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
-th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
-th { background: #e8eef8; font-weight: bold; }
-a  { color: #2a5ea8; }
-ul, ol { margin: 4pt 0 4pt 18pt; }
-</style>
+  <style>body{font-family:'DejaVu Sans',Arial,sans-serif;font-size:11px;margin:32px 40px;color:#1a1a1a}
+h1{font-size:20px;border-bottom:2px solid #2c5c88;padding-bottom:6px;color:#2c5c88}
+h2{font-size:15px;color:#2c5c88;margin-top:22px;border-bottom:1px solid #ddd;padding-bottom:3px}
+h3{font-size:12.5px;color:#333;margin-top:16px}
+pre{background:#f6f8fa;border:1px solid #e1e4e8;border-radius:4px;padding:8px 10px;font-size:9.5px;white-space:pre-wrap}
+code{font-family:'DejaVu Sans Mono',monospace;background:#f0f2f4;padding:1px 3px;border-radius:2px;font-size:9.5px}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ccc;padding:4px 8px;font-size:10px}
+th{background:#eef2f6}blockquote{border-left:3px solid #2c5c88;margin-left:0;padding-left:12px;color:#444}</style>
 </head>
 <body>
-<h1 id="abstract-factory-design-pattern">Abstract Factory Design Pattern</h1>
-<h2 id="intent">Intent</h2>
+<h1>Abstract Factory Design Pattern</h1>
+<h2>Intent</h2>
 <p>Provide an interface for creating <strong>families of related objects</strong> without specifying their concrete classes — and guarantee that everything a given factory produces belongs to the <strong>same family</strong>.</p>
-<p>Here the families are <strong>HOME</strong> and <strong>OFFICE</strong> furniture. If you pick the office factory, every product it hands back (chair <em>and</em> table) is office furniture. You physically cannot end up with a home chair next to an office table. That guarantee — <em>consistency across a product family</em> — is the whole reason Abstract Factory exists and is what separates it from a plain Factory Method.</p>
-<h2 id="uml-class-diagram">UML class diagram</h2>
-<pre><code> &lt;&lt;interface&gt;&gt; IChair      &lt;&lt;interface&gt;&gt; ITable
- +sitOn()                  +use()
+<p>Here the families are <strong>DESERT</strong> and <strong>MOUNTAIN</strong> expedition gear. If you pick the mountain factory, every product it hands back (tent <em>and</em> sleeping bag) is mountain gear. You physically cannot end up with a desert tent next to a mountain sleeping bag. That guarantee — <em>consistency across a product family</em> — is the whole reason Abstract Factory exists and is what separates it from a plain Factory Method.</p>
+<h2>UML class diagram</h2>
+<pre><code> &lt;&lt;interface&gt;&gt; ITent       &lt;&lt;interface&gt;&gt; ISleepingBag
+ +pitch()                  +unroll()
    ^         ^               ^          ^
    |         |               |          |
-HomeChair OfficeChair    HomeTable OfficeTable
+DesertTent MountainTent  DesertSleepingBag MountainSleepingBag
    \_________|_______________|_________/
              produced as MATCHED FAMILIES by
-        &lt;&lt;interface&gt;&gt; IFurnitureFactory
-        +createChair() : IChair   (no args!)
-        +createTable() : ITable
+        &lt;&lt;interface&gt;&gt; IExpeditionGearFactory
+        +createTent() : ITent               (no args!)
+        +createSleepingBag() : ISleepingBag
              ^                    ^
              |                    |
-  HomeFurnitureFactory   OfficeFurnitureFactory
+   DesertGearFactory     MountainGearFactory
              ^                    ^
              +----- registered ---+
-        FurnitureFactoryProvider
-        - factoryMap : EnumMap&lt;FurnitureType,IFurnitureFactory&gt;
-        + getFactory(FurnitureType)
+        ExpeditionGearFactoryProvider
+        - factoryMap : EnumMap&lt;ExpeditionTerrain,IExpeditionGearFactory&gt;
+        + getFactory(ExpeditionTerrain)
 </code></pre>
 <hr />
-<h2 id="the-players">The players</h2>
-<pre><code>enums/FurnitureType                      the family key (HOME, OFFICE)
+<h2>The players</h2>
+<pre><code>enums/ExpeditionTerrain                          the family key (DESERT, MOUNTAIN)
 
-product/IChair                           abstract product A
-product/ITable                           abstract product B
-product/concret/HomeChair, OfficeChair   concrete product A, one per family
-product/concret/HomeTable, OfficeTable   concrete product B, one per family
+product/ITent                                    abstract product A
+product/ISleepingBag                             abstract product B
+product/concrete/DesertTent, MountainTent        concrete product A, one per family
+product/concrete/DesertSleepingBag, MountainSleepingBag  concrete product B, one per family
 
-factory/IFurnitureFactory                the ABSTRACT FACTORY — makes a chair AND a table
-factory/concret/HomeFurnitureFactory     concrete factory for the HOME family
-factory/concret/OfficeFurnitureFactory   concrete factory for the OFFICE family
-factory/FurnitureFactoryProvider         a registry that picks a factory by FurnitureType
+factory/IExpeditionGearFactory                   the ABSTRACT FACTORY — makes a tent AND a sleeping bag
+factory/concrete/DesertGearFactory               concrete factory for the DESERT family
+factory/concrete/MountainGearFactory             concrete factory for the MOUNTAIN family
+factory/ExpeditionGearFactoryProvider            a registry that picks a factory by ExpeditionTerrain
 </code></pre>
 <p>Read the two dimensions carefully — this is the part people get wrong:</p>
 <ul>
-<li><strong>Product kind</strong> — chair vs. table (the <em>rows</em>).</li>
-<li><strong>Family</strong> — home vs. office (the <em>columns</em>).</li>
+<li><strong>Product kind</strong> — tent vs. sleeping bag (the <em>rows</em>).</li>
+<li><strong>Family</strong> — desert vs. mountain (the <em>columns</em>).</li>
 </ul>
 <p>An Abstract Factory has one concrete factory <strong>per column</strong>, and each produces one product <strong>per row</strong>. The grid:</p>
 <table>
 <thead>
 <tr>
 <th></th>
-<th>IChair</th>
-<th>ITable</th>
+<th>ITent</th>
+<th>ISleepingBag</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>HomeFurnitureFactory</strong></td>
-<td>HomeChair</td>
-<td>HomeTable</td>
+<td><strong>DesertGearFactory</strong></td>
+<td>DesertTent</td>
+<td>DesertSleepingBag</td>
 </tr>
 <tr>
-<td><strong>OfficeFurnitureFactory</strong></td>
-<td>OfficeChair</td>
-<td>OfficeTable</td>
+<td><strong>MountainGearFactory</strong></td>
+<td>MountainTent</td>
+<td>MountainSleepingBag</td>
 </tr>
 </tbody>
 </table>
 <hr />
-<h2 id="the-code-line-by-line">The code, line by line</h2>
-<h3 id="furnituretype-the-family-key"><code>FurnitureType</code> — the family key</h3>
-<pre><code class="language-java">public enum FurnitureType {
-    HOME(&quot;HOME&quot;), OFFICE(&quot;OFFICE&quot;);
+<h2>The code, line by line</h2>
+<h3><code>ExpeditionTerrain</code> — the family key</h3>
+<pre><code class="language-java">public enum ExpeditionTerrain {
+    DESERT(&quot;DESERT&quot;), MOUNTAIN(&quot;MOUNTAIN&quot;);
 
     private final String name;
-    FurnitureType(final String name) { this.name = name; }
+    ExpeditionTerrain(final String name) { this.name = name; }
 
     @JsonValue
     public String getName() { return name; }
 }
 </code></pre>
 <ul>
-<li>A <strong>single</strong> enum names the families. It is the one axis of variation. Chairs, tables, and factories are all keyed by this same enum, which keeps the model coherent.</li>
-<li><code>private final String name</code> — final because an enum constant's label should never change. (An earlier draft used <code>public String name</code>, which both leaks the field and shadows the built-in <code>Enum.name()</code> method — fixed here.)</li>
+<li>A <strong>single</strong> enum names the families. It is the one axis of variation. Tents, sleeping bags, and factories are all keyed by this same enum, which keeps the model coherent.</li>
+<li><code>private final String name</code> — final because an enum constant's label should never change. (A naive first draft might use <code>public String name</code>, which both leaks the field and shadows the built-in <code>Enum.name()</code> method — that mistake is avoided here from the start.)</li>
 <li><code>@JsonValue getName()</code> — API-friendly JSON value; not needed by the pattern.</li>
 </ul>
-<h3 id="ichair-itable-the-abstract-products"><code>IChair</code> / <code>ITable</code> — the abstract products</h3>
-<pre><code class="language-java">public interface IChair {
-    FurnitureType getFurnitureType();
-    void sitOn();
+<h3><code>ITent</code> / <code>ISleepingBag</code> — the abstract products</h3>
+<pre><code class="language-java">public interface ITent {
+    ExpeditionTerrain getExpeditionTerrain();
+    void pitch();
 }
-public interface ITable {
-    FurnitureType getFurnitureType();
-    void use();
+public interface ISleepingBag {
+    ExpeditionTerrain getExpeditionTerrain();
+    void unroll();
 }
 </code></pre>
 <ul>
-<li>Each abstract product exposes its behavior (<code>sitOn()</code>, <code>use()</code>) plus <code>getFurnitureType()</code> so it can <strong>declare which family it belongs to</strong>. That self-declaration is what lets the provider index things automatically, exactly like the Factory module.</li>
+<li>Each abstract product exposes its behavior (<code>pitch()</code>, <code>unroll()</code>) plus <code>getExpeditionTerrain()</code> so it can <strong>declare which family it belongs to</strong>. That self-declaration is what lets the provider index things automatically, exactly like the Factory module.</li>
 </ul>
-<h3 id="concrete-products">Concrete products</h3>
+<h3>Concrete products</h3>
 <pre><code class="language-java">@Component
-public class HomeChair implements IChair {
-    @Override public void sitOn() { System.out.println(&quot;Sitting on a home chair!&quot;); }
-    @Override public FurnitureType getFurnitureType() { return FurnitureType.HOME; }
+public class DesertTent implements ITent {
+    @Override public void pitch() { System.out.println(&quot;Pitching a desert tent!&quot;); }
+    @Override public ExpeditionTerrain getExpeditionTerrain() { return ExpeditionTerrain.DESERT; }
 }
 </code></pre>
 <ul>
 <li><code>@Component</code> so Spring can inject them into the matching factory.</li>
-<li><code>HomeChair</code>/<code>HomeTable</code> report <code>HOME</code>; <code>OfficeChair</code>/<code>OfficeTable</code> report <code>OFFICE</code>. Their family identity is baked in.</li>
+<li><code>DesertTent</code>/<code>DesertSleepingBag</code> report <code>DESERT</code>; <code>MountainTent</code>/<code>MountainSleepingBag</code> report <code>MOUNTAIN</code>. Their family identity is baked in.</li>
 </ul>
-<h3 id="ifurniturefactory-the-abstract-factory"><code>IFurnitureFactory</code> — the abstract factory</h3>
-<pre><code class="language-java">public interface IFurnitureFactory {
-    FurnitureType getFurnitureType();
-    IChair createChair();
-    ITable createTable();
+<h3><code>IExpeditionGearFactory</code> — the abstract factory</h3>
+<pre><code class="language-java">public interface IExpeditionGearFactory {
+    ExpeditionTerrain getExpeditionTerrain();
+    ITent createTent();
+    ISleepingBag createSleepingBag();
 }
 </code></pre>
 <ul>
-<li>This is the heart of the pattern. One factory creates a <strong>whole family</strong> — a chair <em>and</em> a table.</li>
-<li><strong><code>createChair()</code> and <code>createTable()</code> take NO arguments.</strong> This is deliberate and is the single most important design point (see <em>Why</em> below). The factory already knows its family; the caller does not get to influence it per call.</li>
-<li><code>getFurnitureType()</code> lets the provider file each factory under its family.</li>
+<li>This is the heart of the pattern. One factory creates a <strong>whole family</strong> — a tent <em>and</em> a sleeping bag.</li>
+<li><strong><code>createTent()</code> and <code>createSleepingBag()</code> take NO arguments.</strong> This is deliberate and is the single most important design point (see <em>Why</em> below). The factory already knows its family; the caller does not get to influence it per call.</li>
+<li><code>getExpeditionTerrain()</code> lets the provider file each factory under its family.</li>
 </ul>
-<h3 id="concrete-factories">Concrete factories</h3>
+<h3>Concrete factories</h3>
 <pre><code class="language-java">@Component
 @RequiredArgsConstructor
-public class HomeFurnitureFactory implements IFurnitureFactory {
+public class DesertGearFactory implements IExpeditionGearFactory {
 
-    private final HomeChair homeChair;
-    private final HomeTable homeTable;
+    private final DesertTent desertTent;
+    private final DesertSleepingBag desertSleepingBag;
 
-    @Override public IChair createChair() { return homeChair; }
-    @Override public ITable createTable() { return homeTable; }
-    @Override public FurnitureType getFurnitureType() { return FurnitureType.HOME; }
+    @Override public ITent createTent() { return desertTent; }
+    @Override public ISleepingBag createSleepingBag() { return desertSleepingBag; }
+    @Override public ExpeditionTerrain getExpeditionTerrain() { return ExpeditionTerrain.DESERT; }
 }
 </code></pre>
 <ul>
-<li><code>@RequiredArgsConstructor</code> (Lombok) generates a constructor for the two <code>final</code> fields, so Spring injects exactly the <strong>home</strong> products into the <strong>home</strong> factory.</li>
-<li><code>createChair()</code> returns the home chair, <code>createTable()</code> returns the home table — a <strong>matched set</strong>. There is no way for this factory to ever return an office product. That is the guarantee.</li>
-<li><code>OfficeFurnitureFactory</code> is the mirror image with <code>OfficeChair</code>/<code>OfficeTable</code>/<code>OFFICE</code>.</li>
+<li><code>@RequiredArgsConstructor</code> (Lombok) generates a constructor for the two <code>final</code> fields, so Spring injects exactly the <strong>desert</strong> products into the <strong>desert</strong> factory.</li>
+<li><code>createTent()</code> returns the desert tent, <code>createSleepingBag()</code> returns the desert sleeping bag — a <strong>matched set</strong>. There is no way for this factory to ever return mountain gear. That is the guarantee.</li>
+<li><code>MountainGearFactory</code> is the mirror image with <code>MountainTent</code>/<code>MountainSleepingBag</code>/<code>MOUNTAIN</code>.</li>
 </ul>
-<h3 id="furniturefactoryprovider-the-registry"><code>FurnitureFactoryProvider</code> — the registry</h3>
+<h3><code>ExpeditionGearFactoryProvider</code> — the registry</h3>
 <pre><code class="language-java">@Component
-public class FurnitureFactoryProvider {
+public class ExpeditionGearFactoryProvider {
 
-    private final EnumMap&lt;FurnitureType, IFurnitureFactory&gt; factoryMap;
+    private final EnumMap&lt;ExpeditionTerrain, IExpeditionGearFactory&gt; factoryMap;
 
-    public FurnitureFactoryProvider(List&lt;? extends IFurnitureFactory&gt; factories) {
+    public ExpeditionGearFactoryProvider(List&lt;? extends IExpeditionGearFactory&gt; factories) {
         this.factoryMap = factories.stream().collect(Collectors.toMap(
-                IFurnitureFactory::getFurnitureType,
+                IExpeditionGearFactory::getExpeditionTerrain,
                 Function.identity(),
                 (a, b) -&gt; b,
-                () -&gt; new EnumMap&lt;&gt;(FurnitureType.class)));
+                () -&gt; new EnumMap&lt;&gt;(ExpeditionTerrain.class)));
     }
 
-    public IFurnitureFactory getFactory(final FurnitureType furnitureType) {
-        return factoryMap.get(furnitureType);
+    public IExpeditionGearFactory getFactory(final ExpeditionTerrain expeditionTerrain) {
+        return factoryMap.get(expeditionTerrain);
     }
 }
 </code></pre>
 <ul>
-<li>Structurally identical to <code>ShapeFactory</code> in the Factory module, but the values are <strong>factories</strong>, not products. Spring injects every <code>IFurnitureFactory</code>, and they get filed into an <code>EnumMap</code> by the family each reports.</li>
-<li><code>getFactory(FurnitureType)</code> hands the caller the right concrete factory. From there, everything that factory makes is guaranteed consistent.</li>
+<li>Structurally identical to <code>ShapeFactory</code> in the Factory module, but the values are <strong>factories</strong>, not products. Spring injects every <code>IExpeditionGearFactory</code>, and they get filed into an <code>EnumMap</code> by the family each reports.</li>
+<li><code>getFactory(ExpeditionTerrain)</code> hands the caller the right concrete factory. From there, everything that factory makes is guaranteed consistent.</li>
 <li>This registry is a convenience layer (a factory-of-factories) so the client can select a family at runtime by enum. It is <strong>not</strong> part of the classic GoF diagram, but it fits this codebase's self-registering <code>EnumMap</code> convention.</li>
 </ul>
-<h3 id="the-demo-abstractfactorydesignpattern">The demo — <code>AbstractFactoryDesignPattern</code></h3>
-<pre><code class="language-java">FurnitureFactoryProvider provider = context.getBean(FurnitureFactoryProvider.class);
+<h3>The demo — <code>AbstractFactoryDesignPattern</code></h3>
+<pre><code class="language-java">ExpeditionGearFactoryProvider provider = context.getBean(ExpeditionGearFactoryProvider.class);
 
-IFurnitureFactory officeFactory = provider.getFactory(FurnitureType.OFFICE);
-officeFactory.createChair().sitOn();   // &quot;Sitting on an office chair!&quot;
-officeFactory.createTable().use();     // &quot;Using an office table!&quot;
+IExpeditionGearFactory mountainGearFactory = provider.getFactory(ExpeditionTerrain.MOUNTAIN);
+mountainGearFactory.createTent().pitch();          // &quot;Pitching a mountain tent!&quot;
+mountainGearFactory.createSleepingBag().unroll();  // &quot;Unrolling a mountain sleeping bag!&quot;
 
-IFurnitureFactory homeFactory = provider.getFactory(FurnitureType.HOME);
-homeFactory.createChair().sitOn();     // &quot;Sitting on a home chair!&quot;
-homeFactory.createTable().use();       // &quot;Using a home table!&quot;
+IExpeditionGearFactory desertGearFactory = provider.getFactory(ExpeditionTerrain.DESERT);
+desertGearFactory.createTent().pitch();            // &quot;Pitching a desert tent!&quot;
+desertGearFactory.createSleepingBag().unroll();    // &quot;Unrolling a desert sleeping bag!&quot;
 </code></pre>
-<p>You pick a family <strong>once</strong> (<code>getFactory(OFFICE)</code>), and every product after that is office furniture. That's the payoff.</p>
+<p>You pick a family <strong>once</strong> (<code>getFactory(MOUNTAIN)</code>), and every product after that is mountain gear. That's the payoff.</p>
 <hr />
-<h2 id="why-the-design-decisions">Why the design decisions</h2>
-<h3 id="why-do-createchair-createtable-take-no-arguments">Why do <code>createChair()</code> / <code>createTable()</code> take no arguments?</h3>
-<p>Because <strong>the factory <em>is</em> the choice of family.</strong> The moment you write <code>createChair(someQualityOrType)</code>, the caller — not the factory — is deciding what comes out, and the family guarantee evaporates. A factory that takes a per-call type argument is just a Factory Method wearing an Abstract Factory costume.</p>
+<h2>Why the design decisions</h2>
+<h3>Why do <code>createTent()</code> / <code>createSleepingBag()</code> take no arguments?</h3>
+<p>Because <strong>the factory <em>is</em> the choice of family.</strong> The moment you write <code>createTent(someMaterialOrSize)</code>, the caller — not the factory — is deciding what comes out, and the family guarantee evaporates. A factory that takes a per-call type argument is just a Factory Method wearing an Abstract Factory costume.</p>
 <blockquote>
-<p>This is exactly the bug the first version of this module had: <code>HomeFurnitureFactory</code> and <code>OfficeFurnitureFactory</code> were identical and both forwarded a <code>CHEAP</code>/<code>EXPENSIVE</code> argument to sub-factories, so HOME vs. OFFICE meant nothing. The fix was to make each concrete factory own its family and drop the arguments.</p>
+<p>This is exactly the bug a naive implementation would fall into: two concrete factories that are identical and both forward an unrelated quality argument to sub-factories, so the family choice means nothing. The fix is to make each concrete factory own its family outright and drop the arguments.</p>
 </blockquote>
-<h3 id="why-one-family-enum-instead-of-two-quality-kind">Why one family enum instead of two (quality + kind)?</h3>
-<p>The broken version had two orthogonal axes — HOME/OFFICE on the factories and CHEAP/EXPENSIVE on the products — that never lined up, so a "home" factory could emit an "expensive" chair and a "cheap" table with no coherence. Collapsing to <strong>one</strong> axis (family) is what makes a factory's output a genuine matched set. If you truly needed quality <em>and</em> location, that would be a <strong>2-dimensional</strong> Abstract Factory: four concrete factories (HomeCheap, HomeExpensive, OfficeCheap, OfficeExpensive), each still producing a fully consistent set.</p>
-<h3 id="why-inject-the-concrete-products-into-each-factory">Why inject the concrete products into each factory?</h3>
-<p>So the matched set is wired at construction time and cannot be violated. <code>HomeFurnitureFactory</code> literally only has a <code>HomeChair</code> and a <code>HomeTable</code> in its fields — the type system itself forbids it from returning office furniture.</p>
-<h3 id="why-the-enummap-provider">Why the <code>EnumMap</code> provider?</h3>
-<p>Same reasoning as the Factory module: it lets a caller choose the family at runtime by enum, it auto-discovers new factories (add a new <code>IFurnitureFactory @Component</code> and it registers itself), and <code>EnumMap</code> is the fast, correct container for enum keys. Adding a THIRD family (say <code>GARDEN</code>) means: add <code>GARDEN</code> to the enum, add <code>GardenChair</code>/<code>GardenTable</code>, add <code>GardenFurnitureFactory</code> — and <strong>nothing else changes</strong>, including the provider.</p>
+<h3>Why one family enum instead of two (terrain + quality)?</h3>
+<p>A broken design would have two orthogonal axes — DESERT/MOUNTAIN on the factories and, say, LIGHTWEIGHT/HEAVY-DUTY on the products — that never line up, so a "desert" factory could emit a "heavy-duty" tent and a "lightweight" sleeping bag with no coherence. Collapsing to <strong>one</strong> axis (family) is what makes a factory's output a genuine matched set. If you truly needed terrain <em>and</em> load rating, that would be a <strong>2-dimensional</strong> Abstract Factory: four concrete factories (DesertLightweight, DesertHeavyDuty, MountainLightweight, MountainHeavyDuty), each still producing a fully consistent set.</p>
+<h3>Why inject the concrete products into each factory?</h3>
+<p>So the matched set is wired at construction time and cannot be violated. <code>DesertGearFactory</code> literally only has a <code>DesertTent</code> and a <code>DesertSleepingBag</code> in its fields — the type system itself forbids it from returning mountain gear.</p>
+<h3>Why the <code>EnumMap</code> provider?</h3>
+<p>Same reasoning as the Factory module: it lets a caller choose the family at runtime by enum, it auto-discovers new factories (add a new <code>IExpeditionGearFactory</code> <code>@Component</code> and it registers itself), and <code>EnumMap</code> is the fast, correct container for enum keys. Adding a THIRD family (say <code>ARCTIC</code>) means: add <code>ARCTIC</code> to the enum, add <code>ArcticTent</code>/<code>ArcticSleepingBag</code>, add <code>ArcticGearFactory</code> — and <strong>nothing else changes</strong>, including the provider.</p>
 <hr />
-<h2 id="execution-flow-as-run-from-main">Execution flow (as run from <code>main</code>)</h2>
+<h2>Execution flow (as run from <code>main</code>)</h2>
 <pre><code>AbstractFactoryDesignPattern.main
         │
         ├── SpringApplication.run(...)         Spring discovers all @Components
-        │       ├── HomeChair, HomeTable, OfficeChair, OfficeTable
-        │       ├── HomeFurnitureFactory  ← injected HomeChair + HomeTable
-        │       ├── OfficeFurnitureFactory ← injected OfficeChair + OfficeTable
-        │       └── FurnitureFactoryProvider ← injected List[Home…, Office…]
-        │               └── EnumMap { HOME→HomeFurnitureFactory, OFFICE→OfficeFurnitureFactory }
+        │       ├── DesertTent, DesertSleepingBag, MountainTent, MountainSleepingBag
+        │       ├── DesertGearFactory    ← injected DesertTent + DesertSleepingBag
+        │       ├── MountainGearFactory  ← injected MountainTent + MountainSleepingBag
+        │       └── ExpeditionGearFactoryProvider ← injected List[Desert…, Mountain…]
+        │               └── EnumMap { DESERT→DesertGearFactory, MOUNTAIN→MountainGearFactory }
         │
-        ├── provider.getFactory(OFFICE) → OfficeFurnitureFactory
-        │       ├── createChair() → OfficeChair.sitOn()  → &quot;Sitting on an office chair!&quot;
-        │       └── createTable() → OfficeTable.use()    → &quot;Using an office table!&quot;
+        ├── provider.getFactory(MOUNTAIN) → MountainGearFactory
+        │       ├── createTent() → MountainTent.pitch()          → &quot;Pitching a mountain tent!&quot;
+        │       └── createSleepingBag() → MountainSleepingBag.unroll() → &quot;Unrolling a mountain sleeping bag!&quot;
         │
-        └── provider.getFactory(HOME) → HomeFurnitureFactory
-                ├── createChair() → HomeChair.sitOn()    → &quot;Sitting on a home chair!&quot;
-                └── createTable() → HomeTable.use()      → &quot;Using a home table!&quot;
+        └── provider.getFactory(DESERT) → DesertGearFactory
+                ├── createTent() → DesertTent.pitch()          → &quot;Pitching a desert tent!&quot;
+                └── createSleepingBag() → DesertSleepingBag.unroll() → &quot;Unrolling a desert sleeping bag!&quot;
 </code></pre>
 <hr />
-<h2 id="factory-method-vs-abstract-factory-the-one-line-rule">Factory Method vs. Abstract Factory (the one-line rule)</h2>
+<h2>Expected output</h2>
+<pre><code>Pitching a mountain tent!
+Unrolling a mountain sleeping bag!
+Pitching a desert tent!
+Unrolling a desert sleeping bag!
+</code></pre>
+<p>Captured from a real run (<code>java -jar target/Abstract_Factory_Design_Pattern-0.0.1-SNAPSHOT.jar</code>); the Spring Boot startup/shutdown log lines are omitted above for readability.</p>
+<hr />
+<h2>How to run</h2>
+<pre><code class="language-bash"># From this module's directory
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean package -DskipTests
+
+# Run the packaged Spring Boot jar (it bundles every dependency, unlike
+# plain `target/classes`, which is missing Spring on its classpath)
+java -jar target/Abstract_Factory_Design_Pattern-0.0.1-SNAPSHOT.jar
+
+# The app boots an embedded web server (spring-boot-starter-web) and stays
+# up after printing the four lines above — stop it with Ctrl-C, or pass
+# --server.port=0 to bind an ephemeral port instead of 8080.
+</code></pre>
+<p>Drop <code>-o</code> (offline) on a first build if the parent reactor's dependencies are not yet in your local Maven repository.</p>
+<hr />
+<h2>Factory Method vs. Abstract Factory (the one-line rule)</h2>
 <ul>
 <li><strong>Factory Method</strong> makes <strong>one</strong> product, chosen by a key you pass in — <code>getShape(TRIANGLE)</code>.</li>
-<li><strong>Abstract Factory</strong> makes a <strong>family</strong> of products, and the <em>factory</em> is the choice — <code>getFactory(OFFICE).createChair()</code> / <code>.createTable()</code>.</li>
+<li><strong>Abstract Factory</strong> makes a <strong>family</strong> of products, and the <em>factory</em> is the choice — <code>getFactory(MOUNTAIN).createTent()</code> / <code>.createSleepingBag()</code>.</li>
 </ul>
 <p>If every <code>create...()</code> call needs a "type" argument, you have Factory Method. If picking the factory already determines everything it produces, you have Abstract Factory.</p>
 <blockquote>

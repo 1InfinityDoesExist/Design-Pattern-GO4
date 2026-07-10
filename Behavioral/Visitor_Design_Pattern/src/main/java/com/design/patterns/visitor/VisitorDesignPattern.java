@@ -3,12 +3,12 @@ package com.design.patterns.visitor;
 import java.util.List;
 
 import com.design.patterns.visitor.elements.IEmployeeElement;
-import com.design.patterns.visitor.elements.concrets.ContractEmployee;
-import com.design.patterns.visitor.elements.concrets.FullTimeEmployee;
-import com.design.patterns.visitor.elements.concrets.InternEmployee;
+import com.design.patterns.visitor.elements.concrete.ContractEmployee;
+import com.design.patterns.visitor.elements.concrete.FullTimeEmployee;
+import com.design.patterns.visitor.elements.concrete.InternEmployee;
 import com.design.patterns.visitor.visitors.IEmployeeVisitors;
-import com.design.patterns.visitor.visitors.concrets.PerformanceReportVisitor;
-import com.design.patterns.visitor.visitors.concrets.TaxVisitor;
+import com.design.patterns.visitor.visitors.concrete.PerformanceReportVisitor;
+import com.design.patterns.visitor.visitors.concrete.TaxVisitor;
 
 public class VisitorDesignPattern {
 

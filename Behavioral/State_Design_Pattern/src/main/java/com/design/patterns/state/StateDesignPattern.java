@@ -1,19 +1,19 @@
 package com.design.patterns.state;
 
-import com.design.patterns.state.context.TrafficLightContext;
-import com.design.patterns.state.states.concrets.RedLightState;
+import com.design.patterns.state.context.CombatContext;
+import com.design.patterns.state.states.concrete.IdleState;
 
 public class StateDesignPattern {
 
 	public static void main(String[] args) {
 		System.out.println("State Design Pattern");
 
-		TrafficLightContext context = new TrafficLightContext();
-		context.setState(new RedLightState());
+		CombatContext combatContext = new CombatContext();
+		combatContext.enterState(new IdleState());
 
-		context.request();
-		context.request();
-		context.request();
+		combatContext.takeTurn();
+		combatContext.takeTurn();
+		combatContext.takeTurn();
 
 	}
 }

@@ -1,16 +1,16 @@
 package com.design.patterns.context;
 
-import com.design.patterns.strategy.OperationStrategy;
+import com.design.patterns.strategy.IOperationStrategy;
 
 public class Calculator {
 
-	private OperationStrategy operationStrategy;
+	private IOperationStrategy operationStrategy;
 
-	public Calculator(OperationStrategy operationStrategy) {
+	public Calculator(IOperationStrategy operationStrategy) {
 		this.operationStrategy = operationStrategy;
 	}
 
-	public void setOperationStrategy(OperationStrategy operationStrategy) {
+	public void setOperationStrategy(IOperationStrategy operationStrategy) {
 		this.operationStrategy = operationStrategy;
 	}
 

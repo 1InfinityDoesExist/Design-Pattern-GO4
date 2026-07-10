@@ -1,23 +1,37 @@
-# Visitor Design Pattern
+# Visitor Design Pattern (Behavioral)
+
+Separate an **operation** from the **object structure** it works on, so new operations can be added without ever modifying the objects being operated on.
+
+---
 
 ## Intent
 
-Separate an **operation** from the **object structure** it works on, so you can add new operations without modifying the objects. Instead of putting every operation inside the element classes, you put each operation in its own **visitor** class, and the elements simply "accept" a visitor and hand themselves back to it.
+The Visitor pattern lets you define a new operation over a hierarchy of object types **without changing the classes of those objects**. Instead of adding a method to every element class each time you need a new operation, you put each operation into its own **visitor** class. The elements expose a single `accept(visitor)` method and hand themselves back to the visitor, which carries the actual behaviour.
 
-Here the object structure is a set of **employee types** (full-time, contract, intern), and the operations are things you might *do* to an employee — compute a **tax report** or a **performance report**. Adding a brand-new operation (say, a bonus calculator) means writing one new visitor class and touching **none** of the employee classes.
+Here the object structure is a set of **employee types** — full-time, contract, and intern — and the operations are things you might *do* to an employee: compute a **tax report** or a **performance report**. Adding a brand-new operation (say, a bonus calculator) means writing exactly one new visitor class and touching **none** of the employee classes.
 
-## UML class diagram
+This is the **canonical GoF Visitor**: an element interface with a single `accept` method, one concrete element per type, a visitor interface with one overloaded `visit(...)` per element type, and one concrete visitor per operation. The mechanism that makes it work is **double dispatch**, explained in full below.
+
+---
+
+## UML class diagram (ASCII)
 
 ```
- <<interface>> IEmployeeElement        <<interface>> IEmployeeVisitors
- | +accept(IEmployeeVisitors) |        | +visit(InternEmployee)     |
-     ^         ^         ^             | +visit(FullTimeEmployee)   |
-     |         |         |             | +visit(ContractEmployee)   |
- FullTime  Contract   Intern               ^                ^
- Employee  Employee   Employee             |                |
-     |          |         |          TaxVisitor   PerformanceReportVisitor
-     +---- accept(v){ v.visit(this); } ----+
-     DOUBLE DISPATCH: element type + visitor type pick the method
+   <<interface>> IEmployeeElement              <<interface>> IEmployeeVisitors
+   +----------------------------+              +----------------------------+
+   | +accept(IEmployeeVisitors) |  - uses ->   | +visit(InternEmployee)     |
+   +-------------^--------------+              | +visit(FullTimeEmployee)   |
+                 | implements                  | +visit(ContractEmployee)   |
+     +-----------+-----------+                 +-------------^--------------+
+     |           |           |                               | implements
++----+-----+ +---+------+ +--+---------+             +--------+-----------+
+| FullTime | | Contract | |  Intern    |             |        |           |
+| Employee | | Employee | |  Employee  |       +-----+----+ +----------------------+
++----------+ +----------+ +------------+       | TaxVisitor| |PerformanceReportVisitor|
+   accept(v){ v.visit(this); }  (each element) +----------+ +----------------------+
+
+   DOUBLE DISPATCH: the element's real type (via accept) AND the
+   visitor's real type (via visit) together select the exact method.
 ```
 
 ---
@@ -25,188 +39,294 @@ Here the object structure is a set of **employee types** (full-time, contract, i
 ## The players
 
 ```
-elements/IEmployeeElement                       the element contract: accept(visitor)
-elements/concrets/FullTimeEmployee              concrete elements — each just calls visitor.visit(this)
-                 /ContractEmployee
+elements/IEmployeeElement                        the element contract: accept(visitor)
+elements/concrete/FullTimeEmployee               concrete elements — each accept() body is
+                 /ContractEmployee                just visitor.visit(this)
                  /InternEmployee
 
-visitors/IEmployeeVisitors                       the visitor contract: one visit(...) per element type
-visitors/concrets/TaxVisitor                     operation #1 — tax report per employee type
-                 /PerformanceReportVisitor        operation #2 — performance report per employee type
+visitors/IEmployeeVisitors                        the visitor contract: one visit(...) overload
+                                                  per concrete element type
+visitors/concrete/TaxVisitor                      operation #1 — tax report per employee type
+                 /PerformanceReportVisitor        operation #2 — performance report per type
 
-VisitorDesignPattern                             the demo — an intern accepts a TaxVisitor
+VisitorDesignPattern                              the demo — runs every visitor over every element
 ```
 
 Two separate hierarchies that meet in the middle:
 
-- **Elements** = the data (employee types).
-- **Visitors** = the operations (reports).
+- **Elements** = the data (employee types), under `elements/` and `elements/concrete/`.
+- **Visitors** = the operations (reports), under `visitors/` and `visitors/concrete/`.
+
+Both concrete visitors — `TaxVisitor` **and** `PerformanceReportVisitor` — are declared `public`.
 
 ---
 
-## The code, line by line
+## Code walkthrough — every line explained
 
-### `IEmployeeElement` — the element contract
+### `IEmployeeElement.java` — the element contract
 
 ```java
+package com.design.patterns.visitor.elements;
+
+import com.design.patterns.visitor.visitors.IEmployeeVisitors;
+
 public interface IEmployeeElement {
 	void accept(IEmployeeVisitors visitor);
 }
 ```
 
-- One method: **`accept(visitor)`**. It means "a visitor has arrived — let it operate on me." Every employee type must implement it.
-- Crucially, the element doesn't *do* the operation itself; it just **admits** a visitor. What actually happens is decided by the visitor plus the element's concrete type (that's the double dispatch, explained below).
+- `package com.design.patterns.visitor.elements;` — Places the element contract in the `elements` package, keeping the "data" side of the pattern separate from the "operation" (`visitors`) side.
+- `import com.design.patterns.visitor.visitors.IEmployeeVisitors;` — Brings the visitor interface into scope so `accept` can name it as a parameter type. This is the single point where the element side references the visitor side.
+- `public interface IEmployeeElement {` — Declares the element interface every employee type implements. `public` so both the concrete elements and the demo (in other packages) can use it.
+- `void accept(IEmployeeVisitors visitor);` — The **one** method of the pattern's element side. It means "a visitor has arrived — let it operate on me." Crucially, the element does **not** perform the operation itself; it only **admits** the visitor. What actually happens is decided later by the visitor's real type combined with the element's real type (double dispatch). Returning `void` keeps the demo simple; a real system could return a result or accumulate it in the visitor.
 
-### The concrete elements
+### The concrete elements — `FullTimeEmployee`, `ContractEmployee`, `InternEmployee`
+
+All three are identical in shape. `FullTimeEmployee.java`:
 
 ```java
+package com.design.patterns.visitor.elements.concrete;
+
+import com.design.patterns.visitor.elements.IEmployeeElement;
+import com.design.patterns.visitor.visitors.IEmployeeVisitors;
+
 public class FullTimeEmployee implements IEmployeeElement {
-	@Override public void accept(IEmployeeVisitors visitor) { visitor.visit(this); }
-}
-public class ContractEmployee implements IEmployeeElement {
-	@Override public void accept(IEmployeeVisitors visitor) { visitor.visit(this); }
-}
-public class InternEmployee implements IEmployeeElement {
-	@Override public void accept(IEmployeeVisitors visitor) { visitor.visit(this); }
+
+	@Override
+	public void accept(IEmployeeVisitors visitor) {
+		visitor.visit(this);
+	}
 }
 ```
 
-- Every element's `accept` body is the **same single line**: `visitor.visit(this)`. But that one line is the linchpin of the whole pattern.
-- The word **`this`** is what matters. Inside `FullTimeEmployee.accept`, `this` has the *static type* `FullTimeEmployee`, so the compiler selects the `visit(FullTimeEmployee)` overload. Inside `InternEmployee.accept`, `this` is an `InternEmployee`, so `visit(InternEmployee)` is selected. The element "knows its own type" and uses that to pick the correct overload on the visitor.
-- Note the code is identical across the three classes but **not redundant**: each `this` refers to a different type, so each routes to a different visitor method. You cannot collapse these into one shared method — the type of `this` is exactly the information being exploited.
+- `package com.design.patterns.visitor.elements.concrete;` — The concrete elements live in the `concrete` sub-package, separating the interface from its implementations.
+- `import ... IEmployeeElement;` — Imports the interface this class implements.
+- `import ... IEmployeeVisitors;` — Imports the visitor type used as the `accept` parameter.
+- `public class FullTimeEmployee implements IEmployeeElement {` — A concrete employee type. It carries no fields here so the code spotlights the dispatch mechanism rather than data.
+- `@Override public void accept(IEmployeeVisitors visitor) {` — Implements the element contract. The compiler-checked `@Override` guarantees the signature matches `IEmployeeElement.accept`.
+- `visitor.visit(this);` — **The linchpin of the whole pattern.** The word `this` matters: inside `FullTimeEmployee.accept`, `this` has the *static type* `FullTimeEmployee`, so the compiler selects the `visit(FullTimeEmployee)` overload. Inside `InternEmployee.accept` the same line resolves to `visit(InternEmployee)`, and inside `ContractEmployee.accept` to `visit(ContractEmployee)`. Each element "knows its own type" and uses it to route to the correct overload on the visitor. The three classes are textually identical but **not redundant** — the type of `this` differs, so each sends control to a different visitor method. You cannot collapse them into one shared method, because the concrete type of `this` is exactly the information being exploited.
 
-### `IEmployeeVisitors` — the visitor contract
+`ContractEmployee` and `InternEmployee` are the same except for the class name (and therefore the type of `this`).
+
+### `IEmployeeVisitors.java` — the visitor contract
 
 ```java
+package com.design.patterns.visitor.visitors;
+
+import com.design.patterns.visitor.elements.concrete.ContractEmployee;
+import com.design.patterns.visitor.elements.concrete.FullTimeEmployee;
+import com.design.patterns.visitor.elements.concrete.InternEmployee;
+
 public interface IEmployeeVisitors {
+
 	void visit(InternEmployee internEmployee);
+
 	void visit(FullTimeEmployee fullTimeEmployee);
+
 	void visit(ContractEmployee contractEmployee);
 }
 ```
 
-- **One overloaded `visit(...)` method per concrete element type.** This is the visitor's side of the contract: "I promise to know what to do with every kind of employee."
-- This is also the pattern's main trade-off in plain sight: the visitor interface **lists every element type**. Add a new employee type and you must add a `visit(...)` here (and in every visitor). Add a new *operation* and you just write a new class. (See *Why the trade-off* below.)
+- `package com.design.patterns.visitor.visitors;` — Places the visitor contract in the `visitors` package.
+- The three `import` lines pull in the concrete element types from `elements.concrete` so the overloads can name them. The visitor side must know every concrete element type — that coupling is inherent to the pattern.
+- `public interface IEmployeeVisitors {` — The visitor contract: "I promise to know what to do with every kind of employee."
+- `void visit(InternEmployee internEmployee);` / `void visit(FullTimeEmployee fullTimeEmployee);` / `void visit(ContractEmployee contractEmployee);` — **One overloaded `visit(...)` method per concrete element type.** This is the second half of double dispatch: the `visitor.visit(this)` call in each element resolves to exactly one of these overloads at compile time based on the static type of `this`. Listing every element type here is also the pattern's central trade-off in plain sight: add a new employee type and you must add a `visit(...)` overload here — and then implement it in **every** visitor.
 
-### The concrete visitors — the actual operations
+### `TaxVisitor.java` — concrete operation #1
 
 ```java
+package com.design.patterns.visitor.visitors.concrete;
+
+import com.design.patterns.visitor.elements.concrete.ContractEmployee;
+import com.design.patterns.visitor.elements.concrete.FullTimeEmployee;
+import com.design.patterns.visitor.elements.concrete.InternEmployee;
+import com.design.patterns.visitor.visitors.IEmployeeVisitors;
+
 public class TaxVisitor implements IEmployeeVisitors {
-	@Override public void visit(FullTimeEmployee employee) { System.out.println("Generating tax report for full-time employee."); }
-	@Override public void visit(ContractEmployee employee) { System.out.println("Generating tax report for contract employee."); }
-	@Override public void visit(InternEmployee internEmployee) { System.out.println("Generating tax report for intern employee."); }
+
+	@Override
+	public void visit(FullTimeEmployee employee) {
+		System.out.println("Generating tax report for full-time employee.");
+	}
+
+	@Override
+	public void visit(ContractEmployee employee) {
+		System.out.println("Generating tax report for contract employee.");
+	}
+
+	@Override
+	public void visit(InternEmployee internEmployee) {
+		System.out.println("Generating tax report for intern employee.");
+	}
 }
 ```
 
-- `TaxVisitor` bundles the **tax** behavior for *all three* employee types in one place. `PerformanceReportVisitor` does the same for **performance reports**.
-- This is the payoff: everything about "computing tax" lives in one class, instead of being scattered as a `computeTax()` method spread across `FullTimeEmployee`, `ContractEmployee`, and `InternEmployee`. Related operation logic is **cohesive**.
-- (Small note: in this module `PerformanceReportVisitor` is declared package-private — `class PerformanceReportVisitor` without `public` — while `TaxVisitor` is `public`. The demo only exercises `TaxVisitor`; making the other `public` would let it be used from other packages too. This is a visibility detail, not part of the pattern.)
+- `package com.design.patterns.visitor.visitors.concrete;` — Concrete visitors live in the `concrete` sub-package, mirroring the element side's layout.
+- The four `import` lines bring in the three concrete element types (needed for the overload parameters) and the `IEmployeeVisitors` interface this class implements.
+- `public class TaxVisitor implements IEmployeeVisitors {` — A concrete visitor. Declared `public` so it can be constructed from the demo in the parent package. Implementing `IEmployeeVisitors` forces it (by the compiler) to provide all three `visit` overloads — you cannot forget one.
+- Each `@Override public void visit(...) { System.out.println("Generating tax report for ... employee."); }` — Supplies the **tax** behaviour for one specific employee type. The payoff of the pattern is visible here: everything about "computing tax" for all three employee types is bundled into this one cohesive class, instead of being scattered as a `computeTax()` method across `FullTimeEmployee`, `ContractEmployee`, and `InternEmployee`. The `System.out.println(...)` stands in for real logic (in a real system it would read salary/hours from the element and compute a number). The string literals are the observable proof of which overload ran.
 
-### `VisitorDesignPattern` — the demo
+### `PerformanceReportVisitor.java` — concrete operation #2
+
+Structurally identical to `TaxVisitor`, but each `visit` prints a **performance** message instead of a tax one:
 
 ```java
-IEmployeeElement iternEmployee = new InternEmployee();
-iternEmployee.accept(new TaxVisitor());
+package com.design.patterns.visitor.visitors.concrete;
+
+import com.design.patterns.visitor.elements.concrete.ContractEmployee;
+import com.design.patterns.visitor.elements.concrete.FullTimeEmployee;
+import com.design.patterns.visitor.elements.concrete.InternEmployee;
+import com.design.patterns.visitor.visitors.IEmployeeVisitors;
+
+public class PerformanceReportVisitor implements IEmployeeVisitors {
+
+	@Override
+	public void visit(FullTimeEmployee employee) {
+		System.out.println("Generating performance report for full-time employee.");
+	}
+
+	@Override
+	public void visit(ContractEmployee employee) {
+		System.out.println("Generating performance report for contract employee.");
+	}
+
+	@Override
+	public void visit(InternEmployee internEmployee) {
+		System.out.println("Generating performance report for intern employee.");
+	}
+}
 ```
 
-- Create an `InternEmployee`, referenced through the element interface.
-- Hand it a `TaxVisitor` via `accept(...)`. Two dispatches then happen (below), and the result is: **"Generating tax report for intern employee."**
-- To run a *different* operation on the same employee, pass a different visitor: `iternEmployee.accept(new PerformanceReportVisitor())`. The `InternEmployee` class doesn't change at all.
+- Everything said about `TaxVisitor` applies. This class is also `public`. It demonstrates the pattern's headline benefit directly: a **second operation** over the *same* element hierarchy was added purely by writing a new class — not a single employee class changed. `TaxVisitor` and `PerformanceReportVisitor` are two independent, cohesive operations sitting side by side.
+
+### `VisitorDesignPattern.java` — the demo / driver
+
+```java
+package com.design.patterns.visitor;
+
+import java.util.List;
+
+import com.design.patterns.visitor.elements.IEmployeeElement;
+import com.design.patterns.visitor.elements.concrete.ContractEmployee;
+import com.design.patterns.visitor.elements.concrete.FullTimeEmployee;
+import com.design.patterns.visitor.elements.concrete.InternEmployee;
+import com.design.patterns.visitor.visitors.IEmployeeVisitors;
+import com.design.patterns.visitor.visitors.concrete.PerformanceReportVisitor;
+import com.design.patterns.visitor.visitors.concrete.TaxVisitor;
+
+public class VisitorDesignPattern {
+
+	public static void main(String[] args) {
+		System.out.println("Visitor Design Pattern");
+
+		List<IEmployeeElement> employees = List.of(new InternEmployee(), new FullTimeEmployee(),
+				new ContractEmployee());
+
+		for (IEmployeeVisitors visitor : List.of(new TaxVisitor(), new PerformanceReportVisitor())) {
+			employees.forEach(employee -> employee.accept(visitor));
+		}
+	}
+}
+```
+
+- `package com.design.patterns.visitor;` — The driver sits in the root package, one level above `elements` and `visitors`, keeping the demo separate from the pattern's building blocks.
+- `import java.util.List;` — Brings in `List` for the two immutable collections built below.
+- The remaining imports pull in the element interface, all three concrete elements, the visitor interface, and both concrete visitors — everything the demo constructs.
+- `public class VisitorDesignPattern {` — The client/driver class. `public` so the JVM can resolve `main` by name from the command line.
+- `public static void main(String[] args) {` — Standard Java entry point. `static` so no instance is needed; `String[] args` receives command-line arguments (unused here).
+- `System.out.println("Visitor Design Pattern");` — Prints the header line so the output has a clear title before the six report lines.
+- `List<IEmployeeElement> employees = List.of(new InternEmployee(), new FullTimeEmployee(), new ContractEmployee());` — Builds an immutable list of one of each employee type, **referenced through the `IEmployeeElement` interface**. Referencing through the interface is deliberate: the demo never uses the concrete types after construction, which is what forces double dispatch to do the type-recovery work at run time.
+- `for (IEmployeeVisitors visitor : List.of(new TaxVisitor(), new PerformanceReportVisitor())) {` — Iterates over an immutable list of the two operations, each referenced through the `IEmployeeVisitors` interface. Adding a third operation would mean adding one more element to this list — and writing one new visitor class, nothing else.
+- `employees.forEach(employee -> employee.accept(visitor));` — For the current visitor, applies it to **every** employee via `accept`. This is the **first dispatch**: `accept` is a virtual call on the element, so the JVM picks the right override (`InternEmployee.accept`, etc.) based on the element's real type. Inside that override, `visitor.visit(this)` performs the **second dispatch**. The nested loops run 2 visitors × 3 employees = **6** `accept` calls, producing 6 report lines (plus the 1 header line printed earlier = 7 lines total).
 
 ---
 
-## The core idea: double dispatch (this is *the* reason Visitor exists)
-
-Java's method calls are **single dispatch**: the method that runs is chosen by the runtime type of **one** object — the receiver before the dot. Overloads like `visit(FullTimeEmployee)` vs. `visit(InternEmployee)`, on the other hand, are resolved by the compiler using the **static (declared)** type of the argument, at compile time.
-
-That combination is a problem. If you tried to skip `accept` and write:
-
-```java
-IEmployeeElement e = new InternEmployee();
-IEmployeeVisitors v = new TaxVisitor();
-v.visit(e);   // ❌ won't compile — there is no visit(IEmployeeElement)
-```
-
-…it fails, because the compiler only knows `e` as `IEmployeeElement` and there's no overload for that type. Even if there were, it couldn't pick the *intern-specific* one, because it doesn't know at compile time that `e` is really an `InternEmployee`.
-
-Visitor solves this with **two dispatches**:
-
-1. **First dispatch — `element.accept(visitor)`.** This is a normal virtual call on the *element*. The runtime picks the right `accept` based on the element's actual type (`InternEmployee.accept`). Now, inside that method, we are in a context where the concrete type is *known*.
-2. **Second dispatch — `visitor.visit(this)`.** This is a virtual call on the *visitor*, and because `this` is statically typed as `InternEmployee` here, the compiler binds it to the `visit(InternEmployee)` overload. At runtime the virtual call selects the concrete visitor (`TaxVisitor`).
-
-So the *combination of the element's real type and the visitor's real type* selects the exact method — `TaxVisitor.visit(InternEmployee)`. That two-step "bounce" (`accept` → `visit(this)`) is **double dispatch**, and it is the entire mechanical reason the pattern is shaped the way it is.
-
----
-
-## Why the design decisions
+## Why these design decisions
 
 ### Why not just put `computeTax()` / `generateReport()` methods on the employees?
 
-You could — but then **every operation is smeared across every element class**, and each new operation forces you to edit *all* the employee classes. Worse, operations that don't really belong to "being an employee" (tax rules, report formatting) pollute the data classes. Visitor **pulls each operation out into its own class**, so a `TaxVisitor` holds all tax logic for all employee types in one cohesive place, and the employee classes stay clean and stable.
+You could — but then **every operation is smeared across every element class**, and each new operation forces you to edit *all* the employee classes. Worse, operations that don't really belong to "being an employee" (tax rules, report formatting) pollute the data classes. Visitor **pulls each operation into its own class**, so `TaxVisitor` holds all tax logic for all employee types in one cohesive place, and the employee classes stay clean and stable.
 
 ### Why the `accept` / `visit(this)` indirection at all?
 
-Purely to achieve double dispatch (above). It's the only way in a single-dispatch language like Java to let *two* runtime types jointly decide which method runs. The `accept` method exists solely to recover the element's concrete type and forward it to the correctly-typed `visit` overload.
+Purely to achieve double dispatch (see the execution trace below). It is the only way in a single-dispatch language like Java to let *two* run-time types jointly decide which method runs. The `accept` method exists solely to recover the element's concrete type and forward it — via the static type of `this` — to the correctly-typed `visit` overload.
 
 ### Why one `visit(...)` overload per element type?
 
-So each visitor is forced (by the compiler) to handle **every** kind of element. If you add `visit(FreelancerEmployee)` to the interface, every existing visitor stops compiling until it provides that behavior — which is a *feature*: you can't accidentally forget to define how tax works for a new employee type.
+So each visitor is **forced by the compiler** to handle every kind of element. If you add `visit(FreelancerEmployee)` to the interface, every existing visitor stops compiling until it provides that behaviour — a *feature*, because you cannot accidentally forget to define how tax works for a new employee type.
 
 ### The fundamental trade-off (know this cold)
 
 Visitor makes one axis easy and the other hard:
 
-- ✅ **Adding a new operation is trivial** — write one new visitor class (e.g. `BonusVisitor`), change nothing else. This is exactly why Visitor is chosen when operations change often but the set of element types is stable.
-- ❌ **Adding a new element type is expensive** — a new `IEmployeeElement` means adding a `visit(...)` method to the visitor interface *and* implementing it in **every** existing visitor.
+- **Adding a new operation is trivial** — write one new visitor class (e.g. `BonusVisitor`), change nothing else. This is exactly why the demo could add `PerformanceReportVisitor` alongside `TaxVisitor` without editing any element.
+- **Adding a new element type is expensive** — a new `IEmployeeElement` means adding a `visit(...)` method to the visitor interface *and* implementing it in **every** existing visitor.
 
-If your element types churn more than your operations, Visitor is the *wrong* pattern (you'd prefer methods on the elements). Pick Visitor when the **element hierarchy is stable** and you keep needing **new operations** over it.
+Pick Visitor when the **element hierarchy is stable** and you keep needing **new operations** over it. If your element types churn more than your operations, prefer methods on the elements instead.
 
 ---
 
-## Execution flow (the demo)
+## Execution flow (step-by-step trace of the double dispatch)
+
+Take the very first iteration: the `TaxVisitor` visiting the `InternEmployee`.
 
 ```
 main
  │
- ├── new InternEmployee()          element, typed as IEmployeeElement
- ├── new TaxVisitor()              the operation to apply
+ ├── employees = [ InternEmployee, FullTimeEmployee, ContractEmployee ]   (typed as IEmployeeElement)
+ ├── visitors  = [ TaxVisitor, PerformanceReportVisitor ]                 (typed as IEmployeeVisitors)
  │
- └── internEmployee.accept( taxVisitor )
-          │  ── 1st dispatch: virtual call picks InternEmployee.accept  (element's real type)
+ └── employee.accept( taxVisitor )       employee's static type is IEmployeeElement
+          │  ── 1st DISPATCH: virtual call selects InternEmployee.accept   (element's REAL type)
           ▼
       InternEmployee.accept(visitor) { visitor.visit(this); }
-          │  ── this is statically an InternEmployee → compiler binds visit(InternEmployee)
-          │  ── 2nd dispatch: virtual call picks TaxVisitor              (visitor's real type)
+          │  ── here `this` is statically an InternEmployee
+          │     → the compiler binds the call to the visit(InternEmployee) overload
+          │  ── 2nd DISPATCH: virtual call selects TaxVisitor.visit         (visitor's REAL type)
           ▼
       TaxVisitor.visit(InternEmployee)
           └── prints "Generating tax report for intern employee."
 ```
 
-**Console output:**
-```
-Visitor Design Pattern
-Generating tax report for intern employee.
-```
+**Why two dispatches are needed.** Java method calls are **single dispatch**: the method that runs is chosen by the run-time type of exactly **one** object — the receiver before the dot. Overloads like `visit(FullTimeEmployee)` vs `visit(InternEmployee)` are resolved by the **compiler** using the **static** type of the argument. So writing `taxVisitor.visit(employee)` directly would fail — the compiler only knows `employee` as `IEmployeeElement`, and there is no `visit(IEmployeeElement)` overload. Visitor recovers the missing type information in two steps:
 
-Swap the visitor, same element:
-```
-internEmployee.accept(new PerformanceReportVisitor())
-   → "Generating performance report for intern employee."
-```
-Swap the element, same visitor:
-```
-new FullTimeEmployee().accept(new TaxVisitor())
-   → "Generating tax report for full-time employee."
-```
-The right method is always chosen by the **pair** of concrete types.
+1. **First dispatch — `element.accept(visitor)`** — a normal virtual call on the *element*. The JVM picks the override matching the element's real type, so control lands inside a method where the concrete type is statically known.
+2. **Second dispatch — `visitor.visit(this)`** — inside that override, `this` has the concrete static type, so the compiler binds the correct `visit(...)` overload; the virtual call then selects the concrete visitor at run time.
+
+The **pair** of real types — element and visitor — selects the exact method (`TaxVisitor.visit(InternEmployee)`). That is double dispatch, and it is the entire mechanical reason the pattern is shaped this way.
+
+The demo repeats this for all 2 × 3 = 6 combinations, so every employee type is reported on by every visitor.
 
 ---
 
-## Notes / possible extensions (not changed in the code)
+## Expected output
 
-- **Elements carry no data here.** `FullTimeEmployee` etc. are empty. In a real system they'd hold fields (salary, hours), and the visitor's `visit(...)` would read them via getters to compute an actual number. The demo keeps them empty to spotlight the dispatch mechanism.
-- **Visitors can accumulate state.** A visitor is a great place to gather results while traversing many elements (e.g. a running `totalTax`), because it visits each element and can keep fields between visits.
-- **Plain `main`, no Spring** — the pattern is pure OO structure and needs no container.
+Running `VisitorDesignPattern.main` prints exactly these 7 lines (1 header + 3 employees × 2 visitors):
+
+```
+Visitor Design Pattern
+Generating tax report for intern employee.
+Generating tax report for full-time employee.
+Generating tax report for contract employee.
+Generating performance report for intern employee.
+Generating performance report for full-time employee.
+Generating performance report for contract employee.
+```
+
+The visitors are applied in list order (`TaxVisitor` then `PerformanceReportVisitor`), and within each visitor the employees are visited in list order (intern, full-time, contract) — which is exactly the order of the lines above.
+
+---
+
+## How to run
+
+```bash
+# From the module root directory
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean compile
+
+java -cp target/classes com.design.patterns.visitor.VisitorDesignPattern
+```
+
+The `-o` (offline) flag works once the parent reactor and dependencies are already in your local Maven cache; drop it on a first build. This module is plain Java with a `main` method — no Spring container is involved, so the JVM prints the seven lines and exits immediately.
 
 ---
 

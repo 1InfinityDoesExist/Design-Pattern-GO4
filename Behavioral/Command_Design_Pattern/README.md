@@ -4,24 +4,24 @@
 
 Turn a **request into an object**. Instead of calling a method directly, you wrap "the thing to do" in a command object that knows *which* receiver to act on and *what* to do to it. Because the request is now an object, you can pass it around, store it, queue it, log it, undo it, or hand it to something that fires it later without knowing what it does.
 
-Here the requests are **remote-control actions** (turn on, turn off, adjust volume, change channel), the things being controlled are **devices** (a `TV`, a `Stereo`), and the **`RemoteControl`** presses a button without knowing anything about the device behind it.
+Here the requests are **workcell actions** (engage an actuator, disengage an actuator, grip a payload, move a joint), the things being controlled are **actuators** (a `JointActuator`, a `GripperActuator`), and the **`TaskQueue`** dispatches a pending task without knowing anything about the actuator behind it.
 
 ## UML class diagram
 
 ```
- <<interface>> Command          <<interface>> Device
- | +execute() |                 | +turnOn() +turnOff() |
-    ^   ^   ^   ^                   ^            ^
-    |   |   |   |                   |            |
-TurnOn TurnOff AdjustVolume ChangeChannel      TV        Stereo
- (Device) (Device) (Stereo)   (TV)         +changeChannel +adjustVolume
+ <<interface>> IActuatorCommand   <<interface>> IActuator
+ | +run() |                       | +engage() +disengage() |
+    ^   ^   ^   ^                     ^              ^
+    |   |   |   |                     |              |
+Engage Disengage GripPayload MoveJoint          JointActuator  GripperActuator
+ (IActuator) (IActuator) (GripperActuator) (JointActuator)   +moveToNextWaypoint +gripPayload
     \      |        |        /
      bound receiver + action
         +----------------+
-        | RemoteControl  |  (invoker)
-        | -command       |
-        | +setCommand()  |
-        | +pressButton() |--> command.execute() --> receiver method
+        |   TaskQueue    |  (invoker)
+        | -pendingTask   |
+        | +assignTask()  |
+        | +dispatchTask()|--> task.run() --> actuator method
         +----------------+
 ```
 
@@ -30,148 +30,148 @@ TurnOn TurnOff AdjustVolume ChangeChannel      TV        Stereo
 ## The four roles (this pattern is defined by them)
 
 ```
-controller/Command                         the COMMAND     — the request interface: execute()
-controller/concrets/TurnOnCommand          CONCRETE COMMANDS — each binds a receiver + an action
-                   /TurnOffCommand
-                   /AdjustVolumeCommand
-                   /ChangeChannelCommand
-receiver/Device (+ concrets/TV, Stereo)    the RECEIVER    — the object that does the real work
-invoker/RemoteControl                       the INVOKER     — holds a command and triggers it
-CommandDesignPattern (main)                 the CLIENT      — wires receivers, commands, invoker
+controller/IActuatorCommand                 the COMMAND     — the request interface: run()
+controller/concretes/EngageActuatorCommand  CONCRETE COMMANDS — each binds a receiver + an action
+                   /DisengageActuatorCommand
+                   /GripPayloadCommand
+                   /MoveJointCommand
+receiver/IActuator (+ concretes/JointActuator, GripperActuator)  the RECEIVER — the object that does the real work
+invoker/TaskQueue                            the INVOKER     — holds a task and dispatches it
+CommandDesignPattern (main)                  the CLIENT      — wires actuators, commands, invoker
 ```
 
-- **Command** — a common interface with a single `execute()`.
-- **Concrete Command** — a small class that remembers *which receiver* and *which method* to call, and does so in `execute()`.
-- **Receiver** — the object that actually knows how to perform the work (the TV, the stereo).
-- **Invoker** — triggers a command (`pressButton()`) without knowing what the command does or who the receiver is.
-- **Client** — creates the receivers and commands and assigns commands to the invoker.
+- **IActuatorCommand** — a common interface with a single `run()`.
+- **Concrete Command** — a small class that remembers *which receiver* and *which method* to call, and does so in `run()`.
+- **Receiver** — the object that actually knows how to perform the work (the joint, the gripper).
+- **Invoker** — dispatches a task (`dispatchTask()`) without knowing what the task does or who the receiver is.
+- **Client** — creates the receivers and commands and assigns tasks to the invoker.
 
 ---
 
 ## The code, line by line
 
-### `Command` — the request interface
+### `IActuatorCommand` — the request interface
 
 ```java
-public interface Command {
-	public void execute();
+public interface IActuatorCommand {
+	public void run();
 }
 ```
 
-- One method: **`execute()`** — "do the thing." Every request in this system is represented as an object implementing this interface.
-- This is what makes a request first-class: anything that can hold a `Command` can trigger *any* action uniformly, without a giant `switch` over action types.
+- One method: **`run()`** — "do the thing." Every request in this system is represented as an object implementing this interface.
+- This is what makes a request first-class: anything that can hold an `IActuatorCommand` can trigger *any* action uniformly, without a giant `switch` over action types.
 
-### `Device`, `TV`, `Stereo` — the receivers
+### `IActuator`, `JointActuator`, `GripperActuator` — the receivers
 
 ```java
-public interface Device {
-	void turnOn();
-	void turnOff();
+public interface IActuator {
+	void engage();
+	void disengage();
 }
 
-public class TV implements Device {
-	@Override public void turnOn()  { System.out.println("TV is now on"); }
-	@Override public void turnOff() { System.out.println("TV is now off"); }
-	public void changeChannel()     { System.out.println("Channel changed"); }
+public class JointActuator implements IActuator {
+	@Override public void engage()    { System.out.println("Joint actuator is now engaged"); }
+	@Override public void disengage() { System.out.println("Joint actuator is now disengaged"); }
+	public void moveToNextWaypoint()  { System.out.println("Joint moved to next waypoint"); }
 }
 
-public class Stereo implements Device {
-	@Override public void turnOn()  { System.out.println("Stereo is now on"); }
-	@Override public void turnOff() { System.out.println("Stereo is now off"); }
-	public void adjustVolume()      { System.out.println("Volume adjusted"); }
+public class GripperActuator implements IActuator {
+	@Override public void engage()    { System.out.println("Gripper actuator is now engaged"); }
+	@Override public void disengage() { System.out.println("Gripper actuator is now disengaged"); }
+	public void gripPayload()         { System.out.println("Jaws gripped around payload"); }
 }
 ```
 
-- The **receivers contain the actual behavior** — they know how to turn on, change a channel, adjust volume. The commands don't *do* the work; they *delegate* to a receiver that does.
-- `turnOn()`/`turnOff()` are shared across all devices, so they live in the **`Device` interface**. `changeChannel()` (TV-only) and `adjustVolume()` (Stereo-only) are device-specific, so they live only on the concrete classes. This split matters for how the commands are typed (below).
+- The **receivers contain the actual behavior** — they know how to engage, move to a waypoint, grip a payload. The commands don't *do* the work; they *delegate* to a receiver that does.
+- `engage()`/`disengage()` are shared across all actuators, so they live in the **`IActuator` interface**. `moveToNextWaypoint()` (joint-only) and `gripPayload()` (gripper-only) are actuator-specific, so they live only on the concrete classes. This split matters for how the commands are typed (below).
 
 ### The concrete commands
 
 ```java
-public class TurnOnCommand implements Command {
-	private Device device;
-	public TurnOnCommand(Device device) { this.device = device; }
-	@Override public void execute() { device.turnOn(); }
+public class EngageActuatorCommand implements IActuatorCommand {
+	private IActuator actuator;
+	public EngageActuatorCommand(IActuator actuator) { this.actuator = actuator; }
+	@Override public void run() { actuator.engage(); }
 }
 
-public class TurnOffCommand implements Command {
-	private Device device;
-	public TurnOffCommand(Device device) { this.device = device; }
-	@Override public void execute() { device.turnOff(); }
+public class DisengageActuatorCommand implements IActuatorCommand {
+	private IActuator actuator;
+	public DisengageActuatorCommand(IActuator actuator) { this.actuator = actuator; }
+	@Override public void run() { actuator.disengage(); }
 }
 
-public class AdjustVolumeCommand implements Command {
-	private Stereo stereo;
-	public AdjustVolumeCommand(Stereo stereo) { this.stereo = stereo; }
-	@Override public void execute() { stereo.adjustVolume(); }
+public class GripPayloadCommand implements IActuatorCommand {
+	private GripperActuator gripper;
+	public GripPayloadCommand(GripperActuator gripper) { this.gripper = gripper; }
+	@Override public void run() { gripper.gripPayload(); }
 }
 
-public class ChangeChannelCommand implements Command {
-	private TV tv;
-	public ChangeChannelCommand(TV tv) { this.tv = tv; }
-	@Override public void execute() { tv.changeChannel(); }
+public class MoveJointCommand implements IActuatorCommand {
+	private JointActuator joint;
+	public MoveJointCommand(JointActuator joint) { this.joint = joint; }
+	@Override public void run() { joint.moveToNextWaypoint(); }
 }
 ```
 
 Each concrete command is the same tiny shape, and that shape *is* the pattern:
 
-- **It stores a reference to its receiver** (a `Device`, `Stereo`, or `TV`) — this is the "who to act on," captured at construction time.
-- **Its `execute()` calls one method on that receiver** — this is the "what to do." The command is essentially a bound (receiver, action) pair frozen into an object.
+- **It stores a reference to its receiver** (an `IActuator`, `GripperActuator`, or `JointActuator`) — this is the "who to act on," captured at construction time.
+- **Its `run()` calls one method on that receiver** — this is the "what to do." The command is essentially a bound (receiver, action) pair frozen into an object.
 - **Notice the receiver types differ on purpose:**
-  - `TurnOnCommand`/`TurnOffCommand` take the **`Device` interface** — because *every* device can be turned on/off, so these commands work polymorphically with a TV, a Stereo, or any future device.
-  - `AdjustVolumeCommand` takes a **`Stereo`** and `ChangeChannelCommand` takes a **`TV`** — because those actions exist only on those concrete receivers, so the command is typed to the receiver that actually offers the method.
+  - `EngageActuatorCommand`/`DisengageActuatorCommand` take the **`IActuator` interface** — because *every* actuator can be engaged/disengaged, so these commands work polymorphically with a joint, a gripper, or any future actuator.
+  - `GripPayloadCommand` takes a **`GripperActuator`** and `MoveJointCommand` takes a **`JointActuator`** — because those actions exist only on those concrete receivers, so the command is typed to the receiver that actually offers the method.
 
-### `RemoteControl` — the invoker
+### `TaskQueue` — the invoker
 
 ```java
-public class RemoteControl {
-	private Command command;
+public class TaskQueue {
+	private IActuatorCommand pendingTask;
 
-	public void setCommand(Command command) { this.command = command; }
+	public void assignTask(IActuatorCommand task) { this.pendingTask = task; }
 
-	public void pressButton() {
-		if (command != null) {
-			command.execute();
+	public void dispatchTask() {
+		if (pendingTask != null) {
+			pendingTask.run();
 		} else {
-			System.out.println("No command assigned");
+			System.out.println("No task assigned");
 		}
 	}
 }
 ```
 
-- **`setCommand(...)`** — you load a command into the remote. The remote holds it **by the `Command` interface**, so it can hold *any* command.
-- **`pressButton()`** — the invoker's trigger. It just calls `command.execute()`. Critically, the remote has **no idea** whether it's turning on a TV or adjusting a stereo's volume — it only knows "I have a command; fire it." That ignorance is the entire benefit (see *Why* below).
-- The `null` guard makes an unassigned button harmless ("No command assigned") instead of a `NullPointerException`.
+- **`assignTask(...)`** — you load a task into the queue. The queue holds it **by the `IActuatorCommand` interface**, so it can hold *any* task.
+- **`dispatchTask()`** — the invoker's trigger. It just calls `pendingTask.run()`. Critically, the queue has **no idea** whether it's engaging a joint or gripping a payload — it only knows "I have a task; run it." That ignorance is the entire benefit (see *Why* below).
+- The `null` guard makes dispatching with nothing assigned harmless ("No task assigned") instead of a `NullPointerException`.
 
 ### `CommandDesignPattern` — the client
 
 ```java
-TV tv = new TV();
-Stereo stereo = new Stereo();
+JointActuator joint = new JointActuator();
+GripperActuator gripper = new GripperActuator();
 
-Command turnOnTV     = new TurnOnCommand(tv);
-Command turnOffTV    = new TurnOffCommand(tv);
-Command adjustVolume = new AdjustVolumeCommand(stereo);
-Command changeChannel= new ChangeChannelCommand(tv);
+IActuatorCommand engageJoint    = new EngageActuatorCommand(joint);
+IActuatorCommand gripPayload    = new GripPayloadCommand(gripper);
+IActuatorCommand moveJoint      = new MoveJointCommand(joint);
+IActuatorCommand disengageJoint = new DisengageActuatorCommand(joint);
 
-RemoteControl remote = new RemoteControl();
+TaskQueue taskQueue = new TaskQueue();
 
-remote.setCommand(turnOnTV);     remote.pressButton();
-remote.setCommand(adjustVolume); remote.pressButton();
-remote.setCommand(changeChannel);remote.pressButton();
-remote.setCommand(turnOffTV);    remote.pressButton();
+taskQueue.assignTask(engageJoint);    taskQueue.dispatchTask();
+taskQueue.assignTask(gripPayload);    taskQueue.dispatchTask();
+taskQueue.assignTask(moveJoint);      taskQueue.dispatchTask();
+taskQueue.assignTask(disengageJoint); taskQueue.dispatchTask();
 ```
 
-- The **client does the wiring**: it creates the receivers, builds commands that bind actions to those receivers, and assigns commands to the invoker.
-- Then the **same** `pressButton()` produces four different behaviors, depending only on which command is currently loaded.
+- The **client does the wiring**: it creates the receivers, builds commands that bind actions to those receivers, and assigns tasks to the invoker.
+- Then the **same** `dispatchTask()` produces four different behaviors, depending only on which task is currently loaded.
 
 **Console output:**
 ```
 Command Design Pattern
-TV is now on
-Volume adjusted
-Channel changed
-TV is now off
+Joint actuator is now engaged
+Jaws gripped around payload
+Joint moved to next waypoint
+Joint actuator is now disengaged
 ```
 
 ---
@@ -180,27 +180,27 @@ TV is now off
 
 ### Why turn a method call into an object at all?
 
-A direct call — `tv.turnOn()` — happens *right now* and can't be stored, passed, or reasoned about. Wrapping it as an object (`new TurnOnCommand(tv)`) makes the request something you can **hold and manipulate**: put it in a variable, store it in a list, queue it, log it, schedule it, or attach `undo()` to it later. Everything Command enables (undo/redo, macros, queues, transactional replay) flows from this one idea: *the request is now data.*
+A direct call — `joint.engage()` — happens *right now* and can't be stored, passed, or reasoned about. Wrapping it as an object (`new EngageActuatorCommand(joint)`) makes the request something you can **hold and manipulate**: put it in a variable, store it in a list, queue it, log it, schedule it, or attach `undo()` to it later. Everything Command enables (undo/redo, macros, queues, transactional replay) flows from this one idea: *the request is now data.*
 
-### Why does the invoker hold a `Command` and not the receiver?
+### Why does the invoker hold an `IActuatorCommand` and not the receiver?
 
-To **decouple the trigger from the work.** `RemoteControl` knows nothing about TVs or stereos — it depends only on the `Command` interface. That means:
-- the same remote can trigger *any* action, present or future, and
-- adding a new action (e.g. `MuteCommand`) requires **zero changes** to `RemoteControl`.
+To **decouple the trigger from the work.** `TaskQueue` knows nothing about joints or grippers — it depends only on the `IActuatorCommand` interface. That means:
+- the same queue can dispatch *any* action, present or future, and
+- adding a new action (e.g. `HoldPositionCommand`) requires **zero changes** to `TaskQueue`.
 
-If the remote called `tv.turnOn()` directly, it would be welded to the TV and would need editing for every new device or action. Command breaks that coupling: the invoker fires requests without knowing what they are.
+If the queue called `joint.engage()` directly, it would be welded to the joint and would need editing for every new actuator or action. Command breaks that coupling: the invoker fires requests without knowing what they are.
 
 ### Why does each command store its receiver?
 
-Because a command must know *what to act on* when it's eventually executed — possibly long after it was created, by an invoker that has no reference to the receiver. Binding the receiver into the command at construction time makes the command **self-contained**: `execute()` needs no arguments and no external context. That self-containment is what lets you queue or defer commands.
+Because a command must know *what to act on* when it's eventually dispatched — possibly long after it was created, by an invoker that has no reference to the receiver. Binding the receiver into the command at construction time makes the command **self-contained**: `run()` needs no arguments and no external context. That self-containment is what lets you queue or defer commands.
 
 ### Why do the commands accept the receiver by *interface* where possible?
 
-`TurnOnCommand(Device)` accepts the interface so one command class works for *every* device — turning on is universal, so there's no reason to tie the command to `TV`. `AdjustVolumeCommand(Stereo)` accepts the concrete type only because `adjustVolume()` isn't part of `Device`. The rule: **depend on the narrowest type that still exposes the method you need** — the interface when the action is shared, the concrete class when the action is specific.
+`EngageActuatorCommand(IActuator)` accepts the interface so one command class works for *every* actuator — engaging is universal, so there's no reason to tie the command to `JointActuator`. `GripPayloadCommand(GripperActuator)` accepts the concrete type only because `gripPayload()` isn't part of `IActuator`. The rule: **depend on the narrowest type that still exposes the method you need** — the interface when the action is shared, the concrete class when the action is specific.
 
-### Why the `null` check in `pressButton()`?
+### Why the `null` check in `dispatchTask()`?
 
-Defensive robustness. An invoker can exist with no command loaded (a freshly-made remote, or a button that was never programmed). Handling that case gracefully ("No command assigned") is friendlier than crashing, and it documents that a command is optional state on the invoker.
+Defensive robustness. An invoker can exist with no task loaded (a freshly-built queue, or a slot that was never programmed). Handling that case gracefully ("No task assigned") is friendlier than crashing, and it documents that a task is optional state on the invoker.
 
 ---
 
@@ -209,33 +209,33 @@ Defensive robustness. An invoker can exist with no command loaded (a freshly-mad
 ```
 main (client wires everything)
  │
- ├── remote.setCommand(turnOnTV)         invoker now holds TurnOnCommand(tv)
- ├── remote.pressButton()
- │        └── command.execute()  →  TurnOnCommand.execute()  →  tv.turnOn()     → "TV is now on"
+ ├── taskQueue.assignTask(engageJoint)      invoker now holds EngageActuatorCommand(joint)
+ ├── taskQueue.dispatchTask()
+ │        └── task.run()  →  EngageActuatorCommand.run()  →  joint.engage()          → "Joint actuator is now engaged"
  │
- ├── remote.setCommand(adjustVolume)     invoker now holds AdjustVolumeCommand(stereo)
- ├── remote.pressButton()
- │        └── command.execute()  →  AdjustVolumeCommand.execute()  →  stereo.adjustVolume() → "Volume adjusted"
+ ├── taskQueue.assignTask(gripPayload)      invoker now holds GripPayloadCommand(gripper)
+ ├── taskQueue.dispatchTask()
+ │        └── task.run()  →  GripPayloadCommand.run()  →  gripper.gripPayload()      → "Jaws gripped around payload"
  │
- ├── remote.setCommand(changeChannel)    invoker now holds ChangeChannelCommand(tv)
- ├── remote.pressButton()
- │        └── command.execute()  →  ChangeChannelCommand.execute()  →  tv.changeChannel()  → "Channel changed"
+ ├── taskQueue.assignTask(moveJoint)        invoker now holds MoveJointCommand(joint)
+ ├── taskQueue.dispatchTask()
+ │        └── task.run()  →  MoveJointCommand.run()  →  joint.moveToNextWaypoint()   → "Joint moved to next waypoint"
  │
- └── remote.setCommand(turnOffTV)        invoker now holds TurnOffCommand(tv)
-     remote.pressButton()
-              └── command.execute()  →  TurnOffCommand.execute()  →  tv.turnOff()  → "TV is now off"
+ └── taskQueue.assignTask(disengageJoint)   invoker now holds DisengageActuatorCommand(joint)
+     taskQueue.dispatchTask()
+              └── task.run()  →  DisengageActuatorCommand.run()  →  joint.disengage() → "Joint actuator is now disengaged"
 ```
 
-The invoker does the identical thing every time (`command.execute()`); the varying behavior comes entirely from *which command object* is loaded — and the invoker never learns what any of them actually do.
+The invoker does the identical thing every time (`task.run()`); the varying behavior comes entirely from *which command object* is loaded — and the invoker never learns what any of them actually do.
 
 ---
 
 ## Notes / possible extensions (not changed in the code)
 
-- **Undo/redo.** The classic Command extension is adding `undo()` to the interface; each command remembers enough to reverse itself (often by holding a **Memento** of the receiver's prior state). A history stack of executed commands then gives multi-level undo.
-- **Macro commands.** A `MacroCommand` that holds a `List<Command>` and calls `execute()` on each lets you compose several requests into one — "movie mode" that dims lights, turns on the TV, and sets the stereo in a single button press.
-- **Queuing / logging / scheduling.** Because commands are objects, an invoker can push them onto a queue, run them on a worker thread, persist them to a log, or replay them — the basis of job queues and transactional systems.
-- **Lambdas.** `Command` is a single-method (functional) interface, so `remote.setCommand(tv::turnOn)` works identically — a method reference is a lightweight command.
+- **Undo/redo.** The classic Command extension is adding `undo()` to the interface; each command remembers enough to reverse itself (often by holding a **Memento** of the receiver's prior state). A history stack of dispatched commands then gives multi-level undo.
+- **Macro commands.** A `MacroCommand` that holds a `List<IActuatorCommand>` and calls `run()` on each lets you compose several requests into one — a "pick-and-place" sequence that engages the gripper, moves the joint, and grips the payload in a single dispatch.
+- **Queuing / logging / scheduling.** Because commands are objects, an invoker can push many onto an actual FIFO queue, run them on a worker thread, persist them to a log, or replay them — the basis of job queues and transactional systems. (This demo's `TaskQueue` holds one pending task at a time; a real scheduler would hold a `List`/`Deque` of them.)
+- **Lambdas.** `IActuatorCommand` is a single-method (functional) interface, so `taskQueue.assignTask(joint::engage)` works identically — a method reference is a lightweight command.
 - **Plain `main`, no Spring** — the pattern is pure OO structure and needs no container.
 
 ---
@@ -244,7 +244,7 @@ The invoker does the identical thing every time (`command.execute()`); the varyi
 
 - **Command (this module)** — package a request as an object so it can be stored, passed, queued, and undone; decouples the invoker from the receiver.
 - **Memento** — commonly paired with Command to implement `undo()` (the command snapshots the receiver's prior state).
-- **Strategy** — also wraps behavior in an object, but represents *how to do* one interchangeable algorithm, not *a request to be triggered/queued/undone* on a receiver.
+- **Strategy** — also wraps behavior in an object, but represents *how to do* one interchangeable algorithm, not *a request to be dispatched/queued/undone* on a receiver.
 - **Chain of Responsibility** — passes one request along handlers until one handles it; Command instead hands a fully-bound request to a single invoker to fire.
 
 Reach for Command when you want to **parameterize objects with actions**, **queue or schedule** requests, support **undo/redo or macros**, or simply decouple the object that triggers an operation from the object that performs it.

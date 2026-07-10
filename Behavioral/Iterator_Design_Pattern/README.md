@@ -25,24 +25,25 @@ Two parallel hierarchies collaborate:
 | **Collection hierarchy** | Knows how elements are stored; can produce an iterator that understands that storage. |
 | **Iterator hierarchy** | Holds a cursor into the collection; exposes `hasNext()` and `next()` to advance. |
 
-The client talks only to the two interfaces — `IterableCollection` and `IIterator` — and never touches the concrete `Playlist` or `PlaylistIterator` directly after the initial setup call. This is the Open/Closed principle: new collection types can be added without changing any iterator-consuming code.
+The client talks only to the two interfaces — `IIterableCollection` and `IIterator` — and never touches the concrete `Playlist` or `PlaylistIterator` directly after the initial setup call. This is the Open/Closed principle: new collection types can be added without changing any iterator-consuming code.
 
 ---
 
 ## UML class diagram (ASCII)
 
 ```
-  <<interface>>                       <<interface>>
-IterableCollection<T>               IIterator<T>
-+createIterator(): IIterator<T>     +hasNext(): boolean
-         ^                          +next(): T
+  <<interface>>                      <<interface>>
+IIterableCollection<T>               IIterator<T>
++createIterator(): IIterator<T>      +hasNext(): boolean
+         ^                           +next(): T
          |                                ^
          |                                |
+
     Playlist --------------------------> PlaylistIterator
-    -songs: List<String>                -playlist: Playlist
-    +addSong(String): void              -index: int
-    +getSongAt(int): String             +hasNext(): boolean
-    +getSize(): int                     +next(): String
+    -songs: List<String>                 -playlist: Playlist
+    +addSong(String): void               -index: int
+    +getSongAt(int): String              +hasNext(): boolean
+    +getSize(): int                      +next(): String
     +createIterator(): IIterator<String>
 
                      IteratorDesignPattern
@@ -58,8 +59,8 @@ IterableCollection<T>               IIterator<T>
 ## The players
 
 - **`IIterator<T>`** — The *Iterator* interface. Declares the two-method contract (`hasNext`, `next`) that all iterators must honour. Typed with a generic `T` so it works for any element type.
-- **`IterableCollection<T>`** — The *Aggregate* interface. Any collection that wants to be traversed implements this and returns an `IIterator<T>` from `createIterator()`.
-- **`Playlist`** — The *ConcreteAggregate*. Holds the actual songs in an `ArrayList`, implements `IterableCollection<String>`, and manufactures a `PlaylistIterator` for itself.
+- **`IIterableCollection<T>`** — The *Aggregate* interface. Any collection that wants to be traversed implements this and returns an `IIterator<T>` from `createIterator()`.
+- **`Playlist`** — The *ConcreteAggregate*. Holds the actual songs in an `ArrayList`, implements `IIterableCollection<String>`, and manufactures a `PlaylistIterator` for itself.
 - **`PlaylistIterator`** — The *ConcreteIterator*. Keeps a cursor (`index`) into the playlist and implements the traversal logic.
 - **`IteratorDesignPattern`** — The *Client / entry point*. Builds a playlist, obtains an iterator, and consumes it without knowing anything about `ArrayList` or index arithmetic.
 
@@ -95,12 +96,12 @@ public interface IIterator<T> {
 
 ---
 
-### `IterableCollection.java`
+### `IIterableCollection.java`
 
 ```java
 package com.design.patterns.iterator.contract;
 
-public interface IterableCollection<T> {
+public interface IIterableCollection<T> {
 
 	IIterator<T> createIterator();
 }
@@ -110,25 +111,25 @@ public interface IterableCollection<T> {
 
 - `package com.design.patterns.iterator.contract;` — Places this interface in the same `contract` package as `IIterator`, keeping both halves of the abstract layer together and importable as a unit.
 - *(blank line)* — Visual separator before the type declaration.
-- `public interface IterableCollection<T> {` — Declares the *Aggregate* interface. `public` makes it accessible from any package. The `<T>` type parameter flows through to the return type of `createIterator()`, ensuring that a collection of `String` produces an `IIterator<String>` — the types are bound at compile time with no unsafe casts. The `{` opens the interface body.
+- `public interface IIterableCollection<T> {` — Declares the *Aggregate* interface. `public` makes it accessible from any package. The `<T>` type parameter flows through to the return type of `createIterator()`, ensuring that a collection of `String` produces an `IIterator<String>` — the types are bound at compile time with no unsafe casts. The `{` opens the interface body.
 - *(blank line)* — Visual separator before the method declaration.
 - `IIterator<T> createIterator();` — Declares the *factory method* of the aggregate contract. Any concrete collection that implements this interface must override this method and return an iterator wired to itself. By returning `IIterator<T>` rather than a concrete iterator class, the interface hides the iterator implementation from all callers — the client code only ever sees `IIterator<T>`.
-- `}` — Closes the `IterableCollection<T>` interface body.
+- `}` — Closes the `IIterableCollection<T>` interface body.
 
 ---
 
 ### `Playlist.java`
 
 ```java
-package com.design.patterns.iterator.contract.concrets;
+package com.design.patterns.iterator.contract.concrete;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import com.design.patterns.iterator.contract.IIterator;
-import com.design.patterns.iterator.contract.IterableCollection;
+import com.design.patterns.iterator.contract.IIterableCollection;
 
-public class Playlist implements IterableCollection<String> {
+public class Playlist implements IIterableCollection<String> {
 	private final List<String> songs = new ArrayList<>();
 
 	public void addSong(String song) {
@@ -152,15 +153,15 @@ public class Playlist implements IterableCollection<String> {
 
 **Line by line:**
 
-- `package com.design.patterns.iterator.contract.concrets;` — Declares this file's package as `concrets` (a sub-package of `contract`), grouping all concrete implementations away from the interfaces while keeping them logically related under the same root.
+- `package com.design.patterns.iterator.contract.concrete;` — Declares this file's package as `concrete` (a sub-package of `contract`), grouping all concrete implementations away from the interfaces while keeping them logically related under the same root.
 - *(blank line)* — Separates the package declaration from the import block.
 - `import java.util.ArrayList;` — Brings `ArrayList` (the JDK's resizable-array implementation of `List`) into scope so it can be referenced by simple name without the full qualified path. `ArrayList` is chosen here because songs are added sequentially and accessed by numeric index — operations that `ArrayList` handles in O(1) amortised time.
 - `import java.util.List;` — Brings the `List<E>` interface into scope. Declaring the field type as the interface (`List<String>`) rather than the concrete class (`ArrayList<String>`) means the field type is narrower than the implementation — a deliberate choice to hide the `ArrayList`-specific API from the rest of the class.
 - *(blank line)* — Separates the JDK imports from the project imports.
 - `import com.design.patterns.iterator.contract.IIterator;` — Brings the custom `IIterator<T>` interface into scope so `createIterator()` can reference it as its return type.
-- `import com.design.patterns.iterator.contract.IterableCollection;` — Brings `IterableCollection<T>` into scope so `Playlist` can declare `implements IterableCollection<String>`.
+- `import com.design.patterns.iterator.contract.IIterableCollection;` — Brings `IIterableCollection<T>` into scope so `Playlist` can declare `implements IIterableCollection<String>`.
 - *(blank line)* — Separates the import block from the class declaration.
-- `public class Playlist implements IterableCollection<String> {` — Declares the concrete aggregate. `public` makes it visible everywhere. `implements IterableCollection<String>` binds the generic type parameter `T` to `String`, meaning this class promises to produce an `IIterator<String>`. The `{` opens the class body.
+- `public class Playlist implements IIterableCollection<String> {` — Declares the concrete aggregate. `public` makes it visible everywhere. `implements IIterableCollection<String>` binds the generic type parameter `T` to `String`, meaning this class promises to produce an `IIterator<String>`. The `{` opens the class body.
 - `private final List<String> songs = new ArrayList<>();` — Declares the backing store. `private` hides the list from all external code — this is the information hiding that forces callers to use the iterator API instead of directly indexing the list. `final` prevents the field from being reassigned to a different `List` object after construction (the list's contents can still grow via `add`). `new ArrayList<>()` uses the diamond operator to infer the `String` type argument from the left-hand-side declaration.
 - *(blank line)* — Visual separator before the first method.
 - `public void addSong(String song) {` — Declares the *mutation method*. `public` so external code (the client / `main`) can populate the playlist. `void` because adding a song produces no return value. The parameter `song` is the song title string to be stored. The `{` opens the method body.
@@ -176,7 +177,7 @@ public class Playlist implements IterableCollection<String> {
 - `}` — Closes the `getSize` method body.
 - *(blank line)* — Visual separator before the `createIterator` override.
 - `@Override` — An annotation that instructs the compiler to verify that the method immediately below it actually overrides a method declared in a supertype. If the signature drifts (e.g., a typo in the method name), the compiler emits an error rather than silently creating an unrelated overload.
-- `public IIterator<String> createIterator() {` — Implements the factory method required by `IterableCollection<String>`. Returns `IIterator<String>` (the interface type), not `PlaylistIterator` (the concrete type), so callers remain decoupled from the iterator implementation. The `{` opens the method body.
+- `public IIterator<String> createIterator() {` — Implements the factory method required by `IIterableCollection<String>`. Returns `IIterator<String>` (the interface type), not `PlaylistIterator` (the concrete type), so callers remain decoupled from the iterator implementation. The `{` opens the method body.
 - `return new PlaylistIterator(this);` — Constructs a fresh `PlaylistIterator`, passing `this` (the current `Playlist` instance) as a back-reference so the iterator can call `getSongAt` and `getSize`. A new instance is created each time so that multiple iterators can operate independently on the same playlist.
 - `}` — Closes the `createIterator` method body.
 - `}` — Closes the `Playlist` class body.
@@ -186,7 +187,7 @@ public class Playlist implements IterableCollection<String> {
 ### `PlaylistIterator.java`
 
 ```java
-package com.design.patterns.iterator.contract.concrets;
+package com.design.patterns.iterator.contract.concrete;
 
 import com.design.patterns.iterator.contract.IIterator;
 
@@ -212,7 +213,7 @@ public class PlaylistIterator implements IIterator<String> {
 
 **Line by line:**
 
-- `package com.design.patterns.iterator.contract.concrets;` — Places `PlaylistIterator` in the same `concrets` package as `Playlist`, allowing it to call the package-visible aspects of `Playlist` and keeping both concrete classes as a cohesive unit.
+- `package com.design.patterns.iterator.contract.concrete;` — Places `PlaylistIterator` in the same `concrete` package as `Playlist`, allowing it to call the package-visible aspects of `Playlist` and keeping both concrete classes as a cohesive unit.
 - *(blank line)* — Separates the package declaration from the import block.
 - `import com.design.patterns.iterator.contract.IIterator;` — Brings `IIterator<T>` into scope so `PlaylistIterator` can declare `implements IIterator<String>`.
 - *(blank line)* — Separates the import block from the class declaration.
@@ -243,7 +244,7 @@ public class PlaylistIterator implements IIterator<String> {
 package com.design.patterns.iterator;
 
 import com.design.patterns.iterator.contract.IIterator;
-import com.design.patterns.iterator.contract.concrets.Playlist;
+import com.design.patterns.iterator.contract.concrete.Playlist;
 
 public class IteratorDesignPattern {
 
@@ -267,17 +268,17 @@ public class IteratorDesignPattern {
 
 **Line by line:**
 
-- `package com.design.patterns.iterator;` — Places the entry-point class in the root `iterator` package, one level above the `contract` and `concrets` sub-packages. This mirrors a typical project structure where the launcher lives at the root and imports from the sub-packages.
+- `package com.design.patterns.iterator;` — Places the entry-point class in the root `iterator` package, one level above the `contract` and `concrete` sub-packages. This mirrors a typical project structure where the launcher lives at the root and imports from the sub-packages.
 - *(blank line)* — Separates the package declaration from the import block.
 - `import com.design.patterns.iterator.contract.IIterator;` — Brings `IIterator<T>` into scope. The variable `iterator` is typed as this interface, not as `PlaylistIterator`, demonstrating that the client depends only on the abstraction.
-- `import com.design.patterns.iterator.contract.concrets.Playlist;` — Brings `Playlist` into scope so it can be instantiated. `PlaylistIterator` is intentionally *not* imported here — the client never references the concrete iterator class by name; it receives an `IIterator<String>` through the factory method.
+- `import com.design.patterns.iterator.contract.concrete.Playlist;` — Brings `Playlist` into scope so it can be instantiated. `PlaylistIterator` is intentionally *not* imported here — the client never references the concrete iterator class by name; it receives an `IIterator<String>` through the factory method.
 - *(blank line)* — Separates the import block from the class declaration.
 - `public class IteratorDesignPattern {` — Declares the public entry-point class. The class name matches the file name (a Java requirement). The `{` opens the class body.
 - *(blank line)* — Visual separator before the `main` method.
 - `public static void main(String[] args) {` — The JVM entry point. `public` so the JVM can call it from outside the class. `static` so it can be invoked without instantiating `IteratorDesignPattern`. `void` because the method has no return value to the JVM. `String[] args` captures any command-line arguments (none are used here). The `{` opens the method body.
 - `System.out.println("Iterator Design Pattern");` — Prints the banner line to standard output followed by a newline. This is the first line that appears in the console when the program runs, identifying which pattern is being demonstrated.
 - *(blank line)* — Visual separator in the source before the playlist setup block.
-- `Playlist playlist = new Playlist();` — Creates a new, empty `Playlist` instance. The variable is typed as `Playlist` (the concrete class) because the client *needs* to call `addSong()`, which is not part of the `IterableCollection` interface. After population, the client will switch to the abstract `IIterator` type.
+- `Playlist playlist = new Playlist();` — Creates a new, empty `Playlist` instance. The variable is typed as `Playlist` (the concrete class) because the client *needs* to call `addSong()`, which is not part of the `IIterableCollection` interface. After population, the client will switch to the abstract `IIterator` type.
 - `playlist.addSong("Shape of You");` — Calls `Playlist.addSong`, which appends the string `"Shape of You"` to the internal `ArrayList`. This becomes element at index `0`.
 - `playlist.addSong("Bohemian Rhapsody");` — Appends `"Bohemian Rhapsody"` to the list. This becomes element at index `1`.
 - `playlist.addSong("Blinding Lights");` — Appends `"Blinding Lights"` to the list. This becomes element at index `2`. The list now has size `3`.
@@ -299,9 +300,9 @@ public class IteratorDesignPattern {
 
 A playlist is inherently a sequence — clients need to walk it from start to finish. But clients should not be coupled to the fact that `Playlist` uses an `ArrayList` internally. If the storage ever changes (a linked list, a database cursor, a remote stream), the client code stays unchanged as long as the iterator contract is honoured. The pattern also opens the door to multiple iterator flavours later (reverse iterator, shuffle iterator, filtered iterator) without modifying `Playlist` or the client at all.
 
-### Why two separate interfaces (`IIterator` and `IterableCollection`)
+### Why two separate interfaces (`IIterator` and `IIterableCollection`)
 
-Splitting the contracts separates two distinct concerns: *how to traverse* (`IIterator`) and *how to produce a traversal* (`IterableCollection`). This allows, for example, a class to implement `IterableCollection` but delegate traversal to a completely different class hierarchy, or for an iterator to outlive the scope where the collection was created.
+Splitting the contracts separates two distinct concerns: *how to traverse* (`IIterator`) and *how to produce a traversal* (`IIterableCollection`). This allows, for example, a class to implement `IIterableCollection` but delegate traversal to a completely different class hierarchy, or for an iterator to outlive the scope where the collection was created.
 
 ### Why `Playlist` exposes `getSongAt` and `getSize` rather than giving the iterator direct field access
 

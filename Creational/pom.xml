@@ -13,7 +13,7 @@
 	<packaging>pom</packaging>
 	<name>Creational</name>
 	<modules>
-		<module>Singletone_Design_Pattern</module>
+		<module>Singleton_Design_Pattern</module>
 		<module>Factory_Design__Pattern</module>
 		<module>Builder_Design_Pattern</module>
 		<module>Abstract_Factory_Design_Pattern</module>

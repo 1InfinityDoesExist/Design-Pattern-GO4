@@ -1,32 +1,16 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>State Design Pattern</title>
-  <style>
-@page { size: A4; margin: 2cm; }
-body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
-h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
-h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
-h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
-h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
-pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
-code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
-pre code { background: transparent; padding: 0; }
-blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
-table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
-th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
-th { background: #e8eef8; font-weight: bold; }
-a  { color: #2a5ea8; }
-ul, ol { margin: 4pt 0 4pt 18pt; }
-</style>
-</head>
-<body>
-<h1 id="state-design-pattern">State Design Pattern</h1>
-<h2 id="intent">Intent</h2>
+<!doctype html><html><head><meta charset='utf-8'><style>body{font-family:'DejaVu Sans',Arial,sans-serif;font-size:11px;margin:32px 40px;color:#1a1a1a}
+h1{font-size:20px;border-bottom:2px solid #2c5c88;padding-bottom:6px;color:#2c5c88}
+h2{font-size:15px;color:#2c5c88;margin-top:22px;border-bottom:1px solid #ddd;padding-bottom:3px}
+h3{font-size:12.5px;color:#333;margin-top:16px}
+pre{background:#f6f8fa;border:1px solid #e1e4e8;border-radius:4px;padding:8px 10px;font-size:9.5px;white-space:pre-wrap}
+code{font-family:'DejaVu Sans Mono',monospace;background:#f0f2f4;padding:1px 3px;border-radius:2px;font-size:9.5px}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ccc;padding:4px 8px;font-size:10px}
+th{background:#eef2f6}blockquote{border-left:3px solid #2c5c88;margin-left:0;padding-left:12px;color:#444}</style></head><body><h1>State Design Pattern</h1>
+<h2>Intent</h2>
 <p>Let an object <strong>change its behavior when its internal state changes</strong>, so it appears to change its class. Instead of one object with a big conditional (<code>if state == RED … else if state == GREEN …</code>), you give each state its <strong>own class</strong>, and the object <em>delegates</em> its behavior to whichever state object it currently holds. Each state also knows <strong>which state comes next</strong>, so the transitions live in the states themselves.</p>
 <p>Here the object is a <strong>traffic light</strong>. It behaves differently depending on whether it's red, green, or yellow — and each colour knows what colour follows it: red → green → yellow → red.</p>
-<h2 id="uml-class-diagram">UML class diagram</h2>
+<h2>UML class diagram</h2>
 <pre><code> &lt;&lt;interface&gt;&gt; ITrafficLightState
  | +handleRequest(TrafficLightContext) |
      ^            ^             ^
@@ -44,9 +28,9 @@ ul, ol { margin: 4pt 0 4pt 18pt; }
  +----------------------+
 </code></pre>
 <hr />
-<h2 id="the-players">The players</h2>
+<h2>The players</h2>
 <pre><code>states/ITrafficLightState                 the state contract: handleRequest(context)
-states/concrets/RedLightState             &quot;stop&quot;       → then becomes Green
+states/concrete/RedLightState             &quot;stop&quot;       → then becomes Green
               /GreenLightState            &quot;go&quot;         → then becomes Yellow
               /YellowLightState           &quot;slow down&quot;  → then becomes Red
 context/TrafficLightContext               the context: holds the current state, delegates to it
@@ -54,8 +38,8 @@ context/TrafficLightContext               the context: holds the current state, 
 StateDesignPattern                        the demo — starts Red, fires three requests
 </code></pre>
 <hr />
-<h2 id="the-code-line-by-line">The code, line by line</h2>
-<h3 id="itrafficlightstate-the-state-contract"><code>ITrafficLightState</code> — the state contract</h3>
+<h2>The code, line by line</h2>
+<h3><code>ITrafficLightState</code> — the state contract</h3>
 <pre><code class="language-java">public interface ITrafficLightState {
     void handleRequest(TrafficLightContext trafficLightContext);
 }
@@ -64,7 +48,7 @@ StateDesignPattern                        the demo — starts Red, fires three r
 <li>One method: <strong><code>handleRequest(context)</code></strong> — "act according to <em>this</em> state, and then decide what state the context should move to."</li>
 <li>It receives the <strong>context</strong> as a parameter. That's essential: it's how a state is able to push the context into its <em>next</em> state (see <em>Why the context is passed in</em> below).</li>
 </ul>
-<h3 id="the-concrete-states">The concrete states</h3>
+<h3>The concrete states</h3>
 <pre><code class="language-java">public class RedLightState implements ITrafficLightState {
     @Override public void handleRequest(TrafficLightContext c) {
         System.out.println(&quot;Red Light: Cars must stop.&quot;);
@@ -90,26 +74,26 @@ public class YellowLightState implements ITrafficLightState {
 <li><strong>The transition</strong> — <code>c.setState(new …())</code> tells the context which state to become next. This is the key idea: <strong>each state owns its own outgoing transition.</strong> Red knows the next state is Green; Green knows it's Yellow; Yellow knows it's Red. The "what comes next" logic is distributed across the states, not centralized in the context.</li>
 </ol>
 <p>Because each state points to the next, the three classes form a <strong>cycle</strong>: Red → Green → Yellow → Red → …</p>
-<h3 id="trafficlightcontext-the-context"><code>TrafficLightContext</code> — the context</h3>
+<h3><code>TrafficLightContext</code> — the context</h3>
 <pre><code class="language-java">public class TrafficLightContext {
 
-    private ITrafficLightState nextITrafficLightState;
+    private ITrafficLightState currentTrafficLightState;
 
-    public void setState(ITrafficLightState nextITrafficLightState) {
-        this.nextITrafficLightState = nextITrafficLightState;
+    public void setState(ITrafficLightState currentTrafficLightState) {
+        this.currentTrafficLightState = currentTrafficLightState;
     }
 
     public void request() {
-        nextITrafficLightState.handleRequest(this);
+        currentTrafficLightState.handleRequest(this);
     }
 }
 </code></pre>
 <ul>
-<li><strong><code>private ITrafficLightState nextITrafficLightState;</code></strong> — the context holds its <strong>current state</strong> by the <em>interface</em> type. It never mentions <code>RedLightState</code> etc.; it only knows "I have some state." This is what lets the behavior change without the context changing.</li>
-<li><strong><code>setState(...)</code></strong> — replaces the current state. It's called both from the outside (to set the <em>initial</em> state) and from <em>inside</em> the states themselves (to perform transitions).</li>
+<li><strong><code>private ITrafficLightState currentTrafficLightState;</code></strong> — the context holds its <strong>current state</strong> by the <em>interface</em> type. It never mentions <code>RedLightState</code> etc.; it only knows "I have some state." This is what lets the behavior change without the context changing. The field name says exactly what it holds — the state that is current <em>now</em>, and that will run the next time <code>request()</code> is called.</li>
+<li><strong><code>setState(...)</code></strong> — replaces the current state. It's called both from the outside (to set the <em>initial</em> state) and from <em>inside</em> the states themselves (to perform transitions). The parameter shares the field's name, so the assignment (<code>this.currentTrafficLightState = currentTrafficLightState;</code>) reads as a plain "adopt whatever state I was handed."</li>
 <li><strong><code>request()</code></strong> — the context's single public action. It <strong>delegates</strong> straight to the current state's <code>handleRequest(this)</code>, passing itself along so the state can act <em>and</em> transition. The context contributes no behavior of its own — it just forwards to whatever state it's in.</li>
 </ul>
-<h3 id="statedesignpattern-the-demo"><code>StateDesignPattern</code> — the demo</h3>
+<h3><code>StateDesignPattern</code> — the demo</h3>
 <pre><code class="language-java">TrafficLightContext context = new TrafficLightContext();
 context.setState(new RedLightState());     // start in Red
 
@@ -122,8 +106,8 @@ context.request();   // Yellow→ prints &quot;slow down&quot;,  transitions to 
 <li>Each <code>context.request()</code> call runs the <strong>current</strong> state's behavior, then the state flips the context to the next colour. So the <em>same</em> call, <code>context.request()</code>, produces <strong>different output each time</strong> — because the object behind the wheel keeps changing.</li>
 </ul>
 <hr />
-<h2 id="why-the-design-decisions">Why the design decisions</h2>
-<h3 id="why-state-instead-of-a-big-ifswitch-on-a-status-field">Why State instead of a big <code>if</code>/<code>switch</code> on a status field?</h3>
+<h2>Why the design decisions</h2>
+<h3>Why State instead of a big <code>if</code>/<code>switch</code> on a status field?</h3>
 <p>The procedural version looks like:</p>
 <pre><code class="language-java">void request() {
     if (state == RED)         { print(&quot;stop&quot;);       state = GREEN; }
@@ -132,14 +116,14 @@ context.request();   // Yellow→ prints &quot;slow down&quot;,  transitions to 
 }
 </code></pre>
 <p>Problems: <strong>every</strong> behavior and <strong>every</strong> transition is crammed into one growing method; adding a state means editing that method (and probably several others like it); and the transition rules are tangled together where they're easy to get wrong. State replaces the conditional with <strong>polymorphism</strong> — each <code>case</code> becomes a class, and "which branch runs" becomes "which state object is currently held." Adding a state is adding a class, not editing a conditional (Open/Closed Principle).</p>
-<h3 id="why-does-each-state-hold-the-transition-to-the-next-state">Why does each state hold the transition to the <em>next</em> state?</h3>
+<h3>Why does each state hold the transition to the <em>next</em> state?</h3>
 <p>So the state machine's wiring lives with the states that own it. <code>RedLightState</code> is the single source of truth for "what follows red." This keeps each transition <strong>local and cohesive</strong>: to understand or change the red→green rule, you look in exactly one place. The context stays dumb — it doesn't need to know the transition table at all.</p>
 <p>(Trade-off: because transitions are distributed, no single file shows the <em>whole</em> machine at a glance. When the graph is complex, some implementations instead centralize transitions in the context or a table. This module uses the distributed style, which is the classic GoF form.)</p>
-<h3 id="why-is-the-contexts-state-field-typed-as-the-interface">Why is the context's state field typed as the interface?</h3>
+<h3>Why is the context's state field typed as the interface?</h3>
 <p>Same principle as Strategy: <strong>program to an interface, not an implementation.</strong> Holding an <code>ITrafficLightState</code> means the context works with any state, present or future, and its behavior changes purely by swapping the referenced object — the context's own code never changes.</p>
-<h3 id="why-is-the-context-passed-into-handlerequestthis">Why is the context passed into <code>handleRequest(this)</code>?</h3>
+<h3>Why is the context passed into <code>handleRequest(this)</code>?</h3>
 <p>Because the state needs a way to <strong>change the context's state</strong> — that's the transition. By handing the state a reference to the context, the state can call <code>context.setState(nextState)</code> to move the machine forward. Without that back-reference, states couldn't drive transitions and the context would have to contain the transition logic (back to the big conditional).</p>
-<h3 id="state-vs-strategy-they-look-almost-identical-heres-the-difference">State vs. Strategy (they look almost identical — here's the difference)</h3>
+<h3>State vs. Strategy (they look almost identical — here's the difference)</h3>
 <p>Structurally State and Strategy are twins: a context delegating to an interface-typed object. The difference is <strong>intent and who changes the object</strong>:</p>
 <ul>
 <li><strong>Strategy</strong> — the <em>client</em> picks one algorithm and it usually stays put; strategies don't know about each other. It's about <em>how</em> to do something.</li>
@@ -147,7 +131,7 @@ context.request();   // Yellow→ prints &quot;slow down&quot;,  transitions to 
 </ul>
 <p>The tell is the self-transition: <code>c.setState(new GreenLightState())</code> inside a state is pure State pattern — a Strategy would never reassign the context's strategy from inside itself.</p>
 <hr />
-<h2 id="execution-flow-the-demo-three-requests">Execution flow (the demo — three requests)</h2>
+<h2>Execution flow (the demo — three requests)</h2>
 <pre><code>main
  │  context.setState(RedLightState)            initial state = Red
  │
@@ -166,28 +150,36 @@ context.request();   // Yellow→ prints &quot;slow down&quot;,  transitions to 
                 ├── prints &quot;Yellow Light: Cars must slow down to stop.&quot;
                 └── context.setState(RedLightState)       ← back to Red
 </code></pre>
-<p><strong>Console output:</strong></p>
+<p>Same method called three times, three different outcomes — because the context's internal state advances Red → Green → Yellow on each call. A fourth <code>request()</code> would print the Red message again and the cycle repeats.</p>
+<hr />
+<h2>Expected output</h2>
 <pre><code>State Design Pattern
 Red Light: Cars must stop.
 Green Light: Cars can go.
 Yellow Light: Cars must slow down to stop.
 </code></pre>
-<p>Same method called three times, three different outcomes — because the context's internal state advances Red → Green → Yellow on each call. A fourth <code>request()</code> would print the Red message again and the cycle repeats.</p>
+<p>No Spring Boot involved — this is a plain <code>main</code>, so the JVM prints these four lines and exits immediately.</p>
 <hr />
-<h2 id="notes-possible-extensions-not-changed-in-the-code">Notes / possible extensions (not changed in the code)</h2>
+<h2>How to run</h2>
+<pre><code class="language-bash"># From the module root directory
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean compile
+
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 /usr/lib/jvm/java-11-openjdk-amd64/bin/java -cp target/classes \
+  com.design.patterns.state.StateDesignPattern
+</code></pre>
+<p>The <code>-o</code> (offline) flag works once the parent reactor and dependencies are already in your local Maven cache; drop it on a first build. This module has no runtime dependencies beyond the JDK, so no classpath assembly is needed beyond <code>target/classes</code>.</p>
+<hr />
+<h2>Notes / possible extensions (not changed in the code)</h2>
 <ul>
 <li><strong>States are created fresh on each transition</strong> (<code>new GreenLightState()</code> etc.). Since these states hold no data, they could be <strong>singletons/shared instances</strong> to avoid allocations — a common optimization when states are stateless.</li>
-<li><strong>The field name is <code>nextITrafficLightState</code>.</strong> It actually holds the <em>current</em> state (the one that will run on the next <code>request()</code>), so a name like <code>currentState</code> would read more naturally — a naming nuance, not a behavioral one (code left as-is).</li>
 <li><strong>Plain <code>main</code>, no Spring</strong> — the pattern is pure OO structure and needs no container.</li>
 </ul>
 <hr />
-<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<h2>Relationship to the other Behavioral patterns</h2>
 <ul>
 <li><strong>State (this module)</strong> — an object's behavior changes as it <strong>transitions between states</strong>; states know their successors and drive the transitions.</li>
 <li><strong>Strategy</strong> — swap <strong>one</strong> algorithm chosen by the client; no self-transitions.</li>
 <li><strong>Chain of Responsibility</strong> — pass a request along handlers until one handles it.</li>
 <li><strong>Template Method</strong> — fix an algorithm skeleton, vary steps via inheritance.</li>
 </ul>
-<p>Reach for State when an object has <strong>distinct modes</strong> with different behavior, and it should move between those modes over time — i.e. when you're really modeling a <strong>finite state machine</strong> and want each state's behavior and transitions kept in one cohesive place.</p>
-</body>
-</html>
+<p>Reach for State when an object has <strong>distinct modes</strong> with different behavior, and it should move between those modes over time — i.e. when you're really modeling a <strong>finite state machine</strong> and want each state's behavior and transitions kept in one cohesive place.</p></body></html>

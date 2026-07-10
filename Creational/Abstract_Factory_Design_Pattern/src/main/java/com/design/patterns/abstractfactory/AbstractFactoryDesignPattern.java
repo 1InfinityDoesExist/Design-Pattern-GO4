@@ -4,9 +4,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
-import com.design.patterns.abstractfactory.enums.FurnitureType;
-import com.design.patterns.abstractfactory.factory.FurnitureFactoryProvider;
-import com.design.patterns.abstractfactory.factory.IFurnitureFactory;
+import com.design.patterns.abstractfactory.enums.ExpeditionTerrain;
+import com.design.patterns.abstractfactory.factory.ExpeditionGearFactoryProvider;
+import com.design.patterns.abstractfactory.factory.IExpeditionGearFactory;
 
 @SpringBootApplication
 public class AbstractFactoryDesignPattern {
@@ -14,14 +14,14 @@ public class AbstractFactoryDesignPattern {
 	public static void main(String[] args) {
 		ConfigurableApplicationContext context = SpringApplication.run(AbstractFactoryDesignPattern.class, args);
 
-		FurnitureFactoryProvider provider = context.getBean(FurnitureFactoryProvider.class);
+		ExpeditionGearFactoryProvider provider = context.getBean(ExpeditionGearFactoryProvider.class);
 
-		IFurnitureFactory officeFactory = provider.getFactory(FurnitureType.OFFICE);
-		officeFactory.createChair().sitOn();
-		officeFactory.createTable().use();
+		IExpeditionGearFactory mountainGearFactory = provider.getFactory(ExpeditionTerrain.MOUNTAIN);
+		mountainGearFactory.createTent().pitch();
+		mountainGearFactory.createSleepingBag().unroll();
 
-		IFurnitureFactory homeFactory = provider.getFactory(FurnitureType.HOME);
-		homeFactory.createChair().sitOn();
-		homeFactory.createTable().use();
+		IExpeditionGearFactory desertGearFactory = provider.getFactory(ExpeditionTerrain.DESERT);
+		desertGearFactory.createTent().pitch();
+		desertGearFactory.createSleepingBag().unroll();
 	}
 }

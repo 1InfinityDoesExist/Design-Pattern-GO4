@@ -11,16 +11,19 @@
 3. [When to Use](#when-to-use)
 4. [Structure — ASCII UML](#structure--ascii-uml)
 5. [Package Structure](#package-structure)
-6. [Line-by-Line Explanation of Every File](#line-by-line-explanation-of-every-file)
-   - [FileSystemComponent.java (Component)](#filesystemcomponentjava--component-interface)
-   - [File.java (Leaf)](#filejava--leaf)
-   - [Directory.java (Composite)](#directoryjava--composite)
-   - [CompositeDesignPattern.java (Driver)](#compositedesignpatternjava--driver--client)
-7. [Execution Flow](#execution-flow)
-8. [Real-World Use Cases](#real-world-use-cases)
-9. [Extending This Example — Nested Directories](#extending-this-example--nested-directories)
-10. [Key Design Decisions](#key-design-decisions)
-11. [Summary](#summary)
+6. [The Players](#the-players)
+7. [Code Walkthrough — Every File, Every Line](#code-walkthrough--every-file-every-line)
+   - [IUnit.java (Component)](#iunitjava--component-interface)
+   - [Soldier.java (Leaf)](#soldierjava--leaf)
+   - [Squad.java (Composite)](#squadjava--composite)
+   - [BattleFormationDesignPattern.java (Driver / Client)](#battleformationdesignpatternjava--driver--client)
+8. [Why These Design Decisions](#why-these-design-decisions)
+9. [Execution Flow Trace](#execution-flow-trace)
+10. [Expected Output](#expected-output)
+11. [How to Run](#how-to-run)
+12. [Real-World Use Cases](#real-world-use-cases)
+13. [Extending This Example — Deeper Nesting](#extending-this-example--deeper-nesting)
+14. [Summary](#summary)
 
 ---
 
@@ -30,48 +33,48 @@ The **Composite Design Pattern** lets you compose objects into tree structures t
 
 In plain terms: you define a single interface (the _Component_). Both a simple, indivisible object (the _Leaf_) and a complex container of objects (the _Composite_) implement that same interface. Client code never needs to know whether it is talking to a leaf or a composite — it always calls the same method on the same interface type, and the right behaviour happens automatically through polymorphism and recursion.
 
-This eliminates branching logic in the caller. The caller does not ask "is this a file or a directory?" — it just calls `display()` and the object figures out what to do.
+This eliminates branching logic in the caller. The caller does not ask "is this a single soldier or a squad?" — it just calls `muster()` and the object figures out what to do.
 
 ---
 
 ## The Problem It Solves
 
-Consider a file system. You have files and directories. Directories can contain files, and they can also contain other directories. The user — or the code — wants to display everything under a given root.
+Consider a battlefield command structure. You have individual soldiers and squads. A squad can contain individual soldiers, and it can also contain other squads (a platoon of squads, for example). The client wants to muster (roll-call and report) everything under a given top-level formation.
 
-**Without the Composite pattern**, client code must distinguish between files and directories manually:
+**Without the Composite pattern**, client code must distinguish between a soldier and a squad manually:
 
 ```java
 // Without Composite — ugly, brittle, hard to extend
-void displayItem(Object item) {
-    if (item instanceof File) {
-        File f = (File) item;
-        System.out.println("File: " + f.getName());
-    } else if (item instanceof Directory) {
-        Directory d = (Directory) item;
-        System.out.println("Directory: " + d.getName());
-        for (Object child : d.getChildren()) {
-            displayItem(child);  // manual recursion scattered in client code
+void reportUnit(Object unit) {
+    if (unit instanceof Soldier) {
+        Soldier s = (Soldier) unit;
+        System.out.println("Soldier: " + s.getCallsign());
+    } else if (unit instanceof Squad) {
+        Squad sq = (Squad) unit;
+        System.out.println("Squad: " + sq.getName());
+        for (Object member : sq.getMembers()) {
+            reportUnit(member);  // manual recursion scattered in client code
         }
     }
-    // What if we add a SymbolicLink? Every caller must be updated.
+    // What if we add a Vehicle unit? Every caller must be updated.
 }
 ```
 
 Problems with this approach:
 
-- Every place in the codebase that handles file-system nodes needs its own `instanceof` chain.
-- Adding a new node type (symbolic link, mount point, archive) requires hunting down every such chain and patching it.
-- The recursion logic — walking into subdirectories — lives in the caller, not in the data structure. This makes callers complex and duplicates recursion logic across the codebase.
-- Unit testing is harder because you cannot test a `Directory` node in isolation from the traversal logic.
+- Every place in the codebase that handles battlefield units needs its own `instanceof` chain.
+- Adding a new unit type (vehicle, artillery battery, drone wing) requires hunting down every such chain and patching it.
+- The recursion logic — walking into sub-squads — lives in the caller, not in the data structure. This makes callers complex and duplicates recursion logic across the codebase.
+- Unit testing is harder because you cannot test a `Squad` node in isolation from the traversal logic.
 
 **With the Composite pattern**, client code reduces to one line:
 
 ```java
 // With Composite — clean, uniform, extensible
-fileSystemComponent.display();
+formation.muster();
 ```
 
-The `display()` call works whether `fileSystemComponent` is a single `File` or a deeply nested `Directory` tree. New node types (symbolic links, archives) just implement `FileSystemComponent` — no caller changes required.
+The `muster()` call works whether `formation` is a single `Soldier` or a deeply nested `Squad` tree. New unit types just implement `IUnit` — no caller changes required.
 
 ---
 
@@ -79,59 +82,60 @@ The `display()` call works whether `fileSystemComponent` is a single `File` or a
 
 Use the Composite pattern when:
 
-1. **You have a tree (part-whole) hierarchy.** The domain naturally decomposes into nodes that are either leaves (no children) or branches (containing other nodes of the same type).
+1. **You have a tree (part-whole) hierarchy.** The domain naturally decomposes into nodes that are either leaves (no members) or branches (containing other nodes of the same type).
 
-2. **You want clients to ignore the difference between individual objects and compositions.** The client should call the same operation regardless of whether it is dealing with a leaf or a branch.
+2. **You want clients to ignore the difference between individual objects and compositions.** The client should call the same operation regardless of whether it is dealing with a single unit or a formation of units.
 
 3. **Adding new node types should not require changes to existing client code.** Open/Closed Principle: open for extension (add a new leaf or composite class), closed for modification (callers do not change).
 
-4. **Recursive traversal should be encapsulated in the data structure, not in the caller.** Each composite node is responsible for traversing its own children.
+4. **Recursive traversal should be encapsulated in the data structure, not in the caller.** Each composite node is responsible for traversing its own members.
 
-5. **The depth of nesting is not known at compile time.** The tree can be arbitrarily deep and can change at runtime (adding files, creating subdirectories).
+5. **The depth of nesting is not known at compile time.** The formation can be arbitrarily deep and can change at runtime (soldiers reassigned, squads regrouped).
 
 Do not use Composite when:
 
 - Every node in the hierarchy is a leaf (no containment). A plain list or array is simpler.
-- You need to enforce strict constraints on which types of children a composite can hold (e.g., a `Form` can only contain `TextInput`, not arbitrary `Widget`). The pattern's uniformity works against such type-level restrictions.
+- You need to enforce strict constraints on which types of members a composite can hold (e.g., a `SpecialOpsSquad` can only contain `SniperUnit`, not any arbitrary `IUnit`). The pattern's uniformity works against such type-level restrictions.
 
 ---
 
 ## Structure — ASCII UML
 
 ```
-+---------------------------+
-|   <<interface>>           |
-|   FileSystemComponent     |
-|---------------------------|
-|   + display() : void      |
-+---------------------------+
-            ^
-            |  implements
-    ________|________
-    |                |
-    |                |
-+----------+   +------------------------------+
-|  File    |   |  Directory                   |
-|----------|   |------------------------------|
-| -name    |   | -directoryName : String      |
-| -size    |   | -fileSystemComponents :      |
-|          |   |    List<FileSystemComponent> |
-|----------|   |------------------------------|
-| +display()|  | +display() : void            |
-+----------+   |   -> prints directory name   |
-   (Leaf)      |   -> for each child:         |
-               |        child.display()       |
-               +------------------------------+
-                        (Composite)
-                             |
-                    contains 0..* of
-                             |
-                             v
-                  FileSystemComponent
-               (could be File or Directory)
++----------------------+
+| <<interface>>        |
+| IUnit                |
+|----------------------|
+| + muster() : void    |
++----------------------+
+             ^
+           |  implements
+     ________|________
+     |                |
+     |                |
++------------+   +----------------------------------------+
+| Soldier    |   | Squad                                   |
+|------------|   |----------------------------------------|
+| -callsign  |   | -squadName : String                     |
+| -firepower |   | -members : List<IUnit>                  |
+|            |   | +add(IUnit)                              |
+| +muster()  |   | +remove(IUnit)                           |
++------------+   | +muster() : void                         |
+    (Leaf)       |   -> prints squad name                   |
+                 |   -> for each member:                    |
+                 |         member.muster()                  |
+                 +----------------------------------------+
+                                (Composite)
+
+                                      |
+                              contains 0..* of
+                                      |
+                                      v
+                                    IUnit
+                        (could be Soldier or Squad)
 ```
 
-The critical observation in the UML is that `Directory` holds a `List<FileSystemComponent>` — a list of the _interface_, not the concrete `File` class. This means a `Directory` can hold any mix of `File` objects and other `Directory` objects (because `Directory` itself implements `FileSystemComponent`). This is what enables the recursive, arbitrarily deep tree structure.
+The critical observation in the UML is that `Squad` holds a `List<IUnit>` — a list of the _interface_, not the concrete `Soldier` class. This means a `Squad` can hold any mix of `Soldier` objects and other `Squad` objects (because `Squad` itself implements `IUnit`). This is what enables the recursive, arbitrarily deep formation structure.
 
 ---
 
@@ -140,49 +144,60 @@ The critical observation in the UML is that `Directory` holds a `List<FileSystem
 ```
 com.design.patterns.composite
 ├── component
-│   └── FileSystemComponent.java      (Component — the shared contract)
+│   └── IUnit.java                     (Component — the shared contract)
 ├── leaf
-│   └── File.java                     (Leaf — indivisible node)
+│   └── Soldier.java                  (Leaf — indivisible unit)
 ├── composite
-│   └── Directory.java                (Composite — branch node)
-└── CompositeDesignPattern.java       (Driver — client / entry point)
+│   └── Squad.java                    (Composite — branch unit)
+└── BattleFormationDesignPattern.java (Driver — client / entry point)
 ```
 
 The three sub-packages exist for clarity and separation of concerns:
 
 - **`component`** — Holds only the interface. This is the contract that every participant in the pattern must fulfill. It has no dependencies on `leaf` or `composite`. Other packages depend on it; it depends on nothing in the pattern.
 
-- **`leaf`** — Holds concrete leaf implementations. Depends only on `component`. A leaf is by definition the terminating node — it has no children and does not import `composite`.
+- **`leaf`** — Holds concrete leaf implementations. Depends only on `component`. A leaf is by definition the terminating node — it has no members and does not import `composite`.
 
-- **`composite`** — Holds the branch implementation. Depends on `component` (to hold `List<FileSystemComponent>`) but does not import `leaf` directly. It works with the interface, which means it can hold any future leaf type without modification.
+- **`composite`** — Holds the branch implementation. Depends on `component` (to hold `List<IUnit>`) but does not import `leaf` directly. It works with the interface, which means it can hold any future leaf type without modification.
 
-- **Root package** — Holds only the driver / demo class. This is the only place where concrete types (`File`, `Directory`) are instantiated. It is the "composition root" — the one place in the application that knows about all the concrete implementations.
+- **Root package** — Holds only the driver / demo class. This is the only place where concrete types (`Soldier`, `Squad`) are instantiated. It is the "composition root" — the one place in the application that knows about all the concrete implementations.
 
-This layering enforces the Dependency Inversion Principle: high-level policy (`Directory`'s traversal logic) depends on the abstraction (`FileSystemComponent`), not on the concrete `File` class.
+This layering enforces the Dependency Inversion Principle: high-level policy (`Squad`'s traversal logic) depends on the abstraction (`IUnit`), not on the concrete `Soldier` class.
 
 ---
 
-## Line-by-Line Explanation of Every File
+## The Players
 
-### `FileSystemComponent.java` — Component Interface
+```
+component/IUnit                    the Component — declares the shared muster() contract
+leaf/Soldier                       the Leaf — a terminal unit holding a callsign and a firepower rating
+composite/Squad                    the Composite — a branch unit holding 0..* IUnit members
+BattleFormationDesignPattern       the Driver / Client — builds the formation and triggers muster()
+```
+
+---
+
+## Code Walkthrough — Every File, Every Line
+
+### `IUnit.java` — Component Interface
 
 ```java
 package com.design.patterns.composite.component;
 ```
 
-Declares the Java package. `component` is a sub-package of the pattern's root. Every class in this file belongs to this package. In a Maven project, this corresponds to the directory `src/main/java/com/design/patterns/composite/component/`.
+Declares the Java package. `component` is a sub-package of the pattern's root. In a Maven project, this corresponds to the directory `src/main/java/com/design/patterns/composite/component/`.
 
 ```java
-public interface FileSystemComponent {
+public interface IUnit {
 ```
 
-Declares a `public` Java interface named `FileSystemComponent`. It is `public` so that classes in other packages (`leaf`, `composite`, and the root driver) can implement or reference it. Using an `interface` rather than an abstract class is a deliberate choice: it allows leaf or composite classes to extend another class if needed (Java supports single inheritance but multiple interface implementation). It also expresses the intention clearly — this is a pure contract with no shared state.
+Declares a `public` interface named `IUnit`. It is `public` so that classes in other packages (`leaf`, `composite`, and the root driver) can implement or reference it. Using an `interface` rather than an abstract class is a deliberate choice: it keeps the contract as pure behaviour with no shared state, and it lets `Soldier` or `Squad` extend another class later if ever needed, since Java supports only single class inheritance but multiple interface implementation.
 
 ```java
-    void display();
+    void muster();
 ```
 
-The single method in the contract. All participants — `File` (leaf) and `Directory` (composite) — must provide a concrete `display()` implementation. The method returns `void` because its purpose is a side effect (printing to the console). In a production system this could return a `String` or write to a buffer, but `void` keeps the demo focused. The fact that this is the _only_ method in the interface is intentional: the Composite pattern works best when the shared interface is minimal. A broader interface (e.g., adding `getSize()`, `getPermissions()`) would force leaf nodes to implement methods that may not make sense for them.
+The single method in the contract. Both participants — `Soldier` (leaf) and `Squad` (composite) — must provide a concrete `muster()` implementation. It returns `void` because its purpose here is a side effect (printing to the console). The fact that this is the _only_ method in the interface is intentional: the Composite pattern works best when the shared interface is minimal. A broader interface (e.g., adding `getRank()`, `getOrders()`) would force leaf units to implement methods that may not make sense for them.
 
 ```java
 }
@@ -192,57 +207,55 @@ Closes the interface declaration.
 
 ---
 
-### `File.java` — Leaf
+### `Soldier.java` — Leaf
 
 ```java
 package com.design.patterns.composite.leaf;
 ```
 
-Places `File` in the `leaf` sub-package. Leaf classes are the indivisible, terminal nodes of the tree. They have no children and do not hold a reference to any `FileSystemComponent`.
+Places `Soldier` in the `leaf` sub-package. Leaf classes are the indivisible, terminal nodes of the formation. They have no members and do not hold a reference to any `IUnit`.
 
 ```java
-import com.design.patterns.composite.component.FileSystemComponent;
+import com.design.patterns.composite.component.IUnit;
 ```
 
-Imports the `FileSystemComponent` interface from the `component` package. This is the _only_ import in this file. `File` does not know about `Directory`, and it does not need to. The leaf's dependency graph is minimal: it knows only about the contract it fulfills.
+Imports the `IUnit` interface from the `component` package. This is the _only_ import in this file. `Soldier` does not know about `Squad`, and it does not need to. The leaf's dependency graph is minimal: it knows only about the contract it fulfills.
 
 ```java
-public class File implements FileSystemComponent {
+public class Soldier implements IUnit {
 ```
 
-Declares `File` as a concrete public class that fulfills the `FileSystemComponent` contract. The `implements FileSystemComponent` clause is the key statement — it enrolls this class into the Composite pattern. From this point, any variable of type `FileSystemComponent` can hold a `File` instance.
-
-Note that `File` is a class name that shadows `java.io.File`. In a production codebase you would use a more domain-specific name (e.g., `TextFile`, `ImageFile`, or keep it in a namespace that avoids confusion), but for a pattern demonstration the collision is acceptable and understood from context.
+Declares `Soldier` as a concrete public class that fulfills the `IUnit` contract. The `implements IUnit` clause is the key statement — it enrolls this class into the Composite pattern. From this point, any variable of type `IUnit` can hold a `Soldier` instance.
 
 ```java
-    private String name;
+    private String callsign;
 ```
 
-The file's name (e.g., `"Image1.png"`). It is `private` — correct encapsulation. No other class should directly access the raw field. If the name were needed externally, a `getName()` getter would be added, but since the only public operation is `display()`, a getter is not required here.
+The soldier's callsign (e.g., `"Rook"`). It is `private` — correct encapsulation. No other class directly accesses the raw field. `muster()` is the only public operation, so no getter is needed.
 
 ```java
-    private int size;
+    private int firepower;
 ```
 
-The file's size in bytes (stored as a plain `int`). `private` for the same encapsulation reasons. Using `int` is fine for a demo; a production file system API would use `long` to handle files larger than ~2 GB (the `int` max value of 2,147,483,647 bytes).
+The soldier's firepower rating, stored as a plain `int`. `private` for the same encapsulation reasons. `int` is sufficient for the ratings used in this demo.
 
 ```java
-    public File(String name, int size) {
+    public Soldier(String callsign, int firepower) {
 ```
 
-A public two-argument constructor. It is `public` so the driver (in the root package) can instantiate it. The constructor requires both `name` and `size` — there is no default constructor and no setters, which makes `File` effectively immutable after construction. Immutability is desirable for value-like objects in a tree.
+A public two-argument constructor. It is `public` so the driver (in the root package) can instantiate it. Both `callsign` and `firepower` are required — there are no setters, so a `Soldier`'s identity is fixed after construction.
 
 ```java
-        this.name = name;
+        this.callsign = callsign;
 ```
 
-Assigns the constructor parameter `name` to the instance field `this.name`. The `this.` qualifier is necessary here because the constructor parameter and the field share the same identifier. Without `this.name =`, the assignment would be `name = name` — a no-op that writes back to the local parameter.
+Assigns the constructor parameter `callsign` to the instance field `this.callsign`. The `this.` qualifier is necessary because the constructor parameter and the field share the same identifier; without it, `callsign = callsign` would be a no-op that writes the parameter back to itself.
 
 ```java
-        this.size = size;
+        this.firepower = firepower;
 ```
 
-Same pattern — assigns the constructor parameter `size` to the instance field `this.size`.
+Same pattern — assigns the constructor parameter `firepower` to the instance field `this.firepower`.
 
 ```java
     }
@@ -254,140 +267,137 @@ Closes the constructor body.
     @Override
 ```
 
-The `@Override` annotation tells the compiler that `display()` is intended to override a method declared in a supertype — in this case, the `FileSystemComponent` interface. If the signature does not match (e.g., due to a typo: `dispaly()`), the compiler emits an error instead of silently creating a new method that does not satisfy the contract. Always use `@Override` when implementing interface methods — it is a safety net.
+The `@Override` annotation tells the compiler that `muster()` is intended to override a method declared in a supertype — here, the `IUnit` interface. If the signature does not match (e.g., due to a typo), the compiler emits an error instead of silently creating an unrelated method. Always use `@Override` when implementing interface methods — it is a safety net.
 
 ```java
-    public void display() {
+    public void muster() {
 ```
 
-Implements the `display()` method required by the `FileSystemComponent` contract. It is `public` because interface methods are implicitly public, and the implementing method must be at least as visible as the interface method.
+Implements the `muster()` method required by the `IUnit` contract. It is `public` because interface methods are implicitly public, and an implementing method must be at least as visible as the interface method.
 
 ```java
-        System.out.println("File  :" + name + " with size : " + size);
+        System.out.println("Soldier : " + callsign + " with firepower : " + firepower);
 ```
 
-Prints the file's name and size to standard output. `name` and `size` refer to the instance fields. The string concatenation (`+`) creates a human-readable line such as `File  :Image1.png with size : 1024`. Note the two spaces after `"File"` — this is intentional in the original source to create visual alignment with `"Directory : "` in the composite's output.
+Prints the soldier's callsign and firepower rating to standard output, e.g. `Soldier : Rook with firepower : 120`. `callsign` and `firepower` refer to the instance fields.
 
 ```java
     }
 }
 ```
 
-Closes `display()` and the `File` class.
+Closes `muster()` and the `Soldier` class.
 
 ---
 
-### `Directory.java` — Composite
+### `Squad.java` — Composite
 
 ```java
 package com.design.patterns.composite.composite;
 ```
 
-Places `Directory` in the `composite` sub-package. The package name is `composite.composite` which is slightly redundant; in practice you might name it `com.design.patterns.composite.branch` or `com.design.patterns.composite.node`, but the naming here makes the role explicit for a learning context.
+Places `Squad` in the `composite` sub-package — the branch/container role of the pattern.
 
 ```java
 import java.util.ArrayList;
 import java.util.List;
 ```
 
-Imports the standard Java collection types. `List` is the interface used for the field declaration (programming to interfaces), and `ArrayList` is the concrete implementation used for initialization. Importing both is necessary because Java does not auto-import collection types.
+Imports the standard Java collection types. `List` is the interface used for the field declaration (programming to interfaces), and `ArrayList` is the concrete implementation used to back it.
 
 ```java
-import com.design.patterns.composite.component.FileSystemComponent;
+import com.design.patterns.composite.component.IUnit;
 ```
 
-Imports the shared component interface. `Directory` holds a `List<FileSystemComponent>` and iterates over it — the only external type it depends on. Crucially, `Directory` does not import `File`. It works with the interface, so it can hold any present or future `FileSystemComponent` implementation.
+Imports the shared component interface. `Squad` holds a `List<IUnit>` and iterates over it — the only pattern-related type it depends on. Crucially, `Squad` does not import `Soldier`. It works purely with the interface, so it can hold any present or future `IUnit` implementation without modification.
 
 ```java
-public class Directory implements FileSystemComponent {
+public class Squad implements IUnit {
 ```
 
-Declares `Directory` as a concrete public class that also implements `FileSystemComponent`. This is the key insight of the Composite pattern: the composite (container) implements the same interface as the leaf. This is what allows a `Directory` to be held inside another `Directory`'s child list — because `Directory` is itself a `FileSystemComponent`.
+Declares `Squad` as a concrete public class that also implements `IUnit`. This is the key insight of the Composite pattern: the composite (container) implements the same interface as the leaf. This is what allows a `Squad` to be held inside another `Squad`'s member list — because `Squad` is itself an `IUnit`.
 
 ```java
-    private String directoryName;
+    private final String squadName;
 ```
 
-The directory's display name (e.g., `"MyDirectory"`). `private` for encapsulation. Unlike the leaf fields, there is no `size` field here — directories in this model are purely structural containers, not measured by size.
+The squad's display name (e.g., `"Alpha Command"`, `"Recon Team"`). It is `private` for encapsulation and `final` because a squad's name never changes after construction — there is no rename operation in this model. Unlike `Soldier`, there is no `firepower` field: squads in this model are purely structural containers, not measured by an intrinsic firepower value of their own.
 
 ```java
-    List<FileSystemComponent> fileSystemComponents = new ArrayList<>();
+    private final List<IUnit> members = new ArrayList<>();
 ```
 
-This is the _defining field_ of the Composite pattern. It is a list of the interface type `FileSystemComponent`, not of the concrete `File` type. This is what makes the pattern recursive and extensible:
+This is the _defining field_ of the Composite pattern. It is `private` (properly encapsulated — no other class can reach in and mutate it directly) and `final` (the list reference itself never changes; only its contents do, through `add`/`remove`). It is typed as a list of the interface `IUnit`, not of the concrete `Soldier` type. This is what makes the pattern recursive and extensible:
 
-- A `Directory` can hold `File` instances (because `File implements FileSystemComponent`).
-- A `Directory` can hold other `Directory` instances (because `Directory implements FileSystemComponent`).
-- A `Directory` can hold any future type that implements `FileSystemComponent` without any change to `Directory`.
+- A `Squad` can hold `Soldier` instances (because `Soldier implements IUnit`).
+- A `Squad` can hold other `Squad` instances (because `Squad implements IUnit`).
+- A `Squad` can hold any future type that implements `IUnit` without any change to `Squad`.
 
-The field is initialized to an empty `ArrayList<>()` as a defensive default. However, it is immediately overwritten in the constructor, so this initializer has no practical effect in this code — it just prevents the field from ever being `null` if the constructor logic were somehow bypassed (which cannot happen in this case, but it is a safe habit).
-
-One issue worth noting: this field is package-private (no access modifier). In `com.design.patterns.composite.composite`, any other class in the same package can access it directly, bypassing encapsulation. It should be `private`. See [Key Design Decisions](#key-design-decisions) for more.
+It is initialized inline to an empty `ArrayList<>()`, so a freshly constructed `Squad` always starts with zero members and is never `null` — members are added afterwards via `add()`.
 
 ```java
-    public Directory(String directoryName, List<FileSystemComponent> fileSystemComponents) {
-```
-
-Public constructor taking the directory's name and its initial list of children. The `List<FileSystemComponent>` parameter type means the caller can pass any list of file-system nodes — mixing files and directories freely. This constructor-based approach (passing children at construction time) makes the object appear initialized from the start, which suits a demonstration, but it also means you cannot incrementally build the directory (no `addChild()` method). A production implementation would add a mutable `add(FileSystemComponent)` method.
-
-```java
-        this.directoryName = directoryName;
-```
-
-Assigns the constructor parameter to the instance field.
-
-```java
-        this.fileSystemComponents = fileSystemComponents;
-```
-
-Replaces the default empty `ArrayList` with the passed-in list. Note that this assignment stores the _reference_ to the caller's list, not a copy. If the caller modifies the list after construction, the `Directory`'s children change too. A defensive copy (`new ArrayList<>(fileSystemComponents)`) would prevent this, but for a pattern demo the shared reference is fine.
-
-```java
+    public Squad(String squadName) {
+        this.squadName = squadName;
     }
 ```
 
-Closes the constructor.
+The constructor takes only the squad's name. Unlike a design where members must be supplied up front, this constructor leaves `members` empty and lets the caller populate the squad incrementally via `add()`. This matches how a real formation is built: you stand up the squad, then you assign personnel to it over time.
+
+```java
+    public void add(IUnit unit) {
+        members.add(unit);
+    }
+```
+
+Adds a member to this squad. The parameter type is the interface `IUnit`, so the caller can pass a `Soldier`, a `Squad`, or any future implementation — the method body never needs to change to support new unit types. This is the operation that actually builds the formation structure: calling `add` with another `Squad` nests one composite inside another.
+
+```java
+    public void remove(IUnit unit) {
+        members.remove(unit);
+    }
+```
+
+Removes a member from this squad, by reference equality (the default `List.remove(Object)` behaviour, since neither `Soldier` nor `Squad` overrides `equals`). This is the structural mirror of `add()` and is standard for a Composite's container-management operations, even though the driver in this module does not currently exercise it.
 
 ```java
     @Override
-    public void display() {
+    public void muster() {
 ```
 
-Implements the `display()` method from `FileSystemComponent`. This implementation does two things: print the directory's own name, then delegate to each child's `display()`. The delegation is what makes the Composite pattern recursive.
+Implements the `muster()` method from `IUnit`. This implementation does two things: print the squad's own name, then delegate to each member's `muster()`. The delegation is what makes the Composite pattern recursive.
 
 ```java
-        System.out.println("Directory : " + this.directoryName);
+        System.out.println("Squad : " + this.squadName);
 ```
 
-Prints the directory header line (e.g., `Directory : MyDirectory`). The `this.` prefix is optional here — `directoryName` unambiguously refers to the instance field since there is no local variable of the same name — but it adds clarity in a teaching context.
+Prints the squad header line (e.g., `Squad : Alpha Command`). The `this.` prefix is optional here — `squadName` unambiguously refers to the instance field since there is no local variable of the same name — but it adds clarity.
 
 ```java
-        fileSystemComponents.stream().forEach(FileSystemComponent::display);
+        members.forEach(IUnit::muster);
 ```
 
 This single line is the heart of the Composite pattern in action:
 
-- `.stream()` — converts the `List<FileSystemComponent>` into a `Stream<FileSystemComponent>`, enabling use of the Stream API.
-- `.forEach(...)` — iterates over every element in the stream and calls the given action on each.
-- `FileSystemComponent::display` — a method reference. This is equivalent to the lambda `component -> component.display()`. It reads as "call `display()` on each `FileSystemComponent` in the stream."
+- `members.forEach(...)` — iterates over every element currently in the member list and calls the given action on each.
+- `IUnit::muster` — a method reference, equivalent to the lambda `unit -> unit.muster()`. It reads as "call `muster()` on each `IUnit` in the list."
 
-Because each element is typed as `FileSystemComponent`, and both `File` and `Directory` implement that interface, Java dispatches `display()` polymorphically at runtime:
+Because each element is typed as `IUnit`, and both `Soldier` and `Squad` implement that interface, Java dispatches `muster()` polymorphically at runtime:
 
-- If the element is a `File`, `File.display()` executes — it prints the file details and returns.
-- If the element is a `Directory`, `Directory.display()` executes — it prints the directory name and then recurses into _its_ children's `display()` calls.
+- If the element is a `Soldier`, `Soldier.muster()` executes — it prints the soldier's details and returns.
+- If the element is a `Squad`, `Squad.muster()` executes — it prints the squad name and then recurses into _its_ members' `muster()` calls.
 
-This recursive delegation means a single top-level `display()` call traverses the entire tree, no matter how deep it goes, with no recursion logic in the client.
+This recursive delegation means a single top-level `muster()` call traverses the entire formation, no matter how deep it goes, with no recursion logic in the client.
 
 ```java
     }
 }
 ```
 
-Closes `display()` and the `Directory` class.
+Closes `muster()` and the `Squad` class.
 
 ---
 
-### `CompositeDesignPattern.java` — Driver / Client
+### `BattleFormationDesignPattern.java` — Driver / Client
 
 ```java
 package com.design.patterns.composite;
@@ -396,34 +406,28 @@ package com.design.patterns.composite;
 The driver lives in the root package, not in any of the sub-packages. This is the composition root — the one place that knows about all concrete types.
 
 ```java
-import java.util.List;
+import com.design.patterns.composite.component.IUnit;
 ```
 
-Imports `java.util.List` to use `List.of(...)` for creating the immutable list of children.
+Imports the component interface. The client uses it for the `formation` variable's declared type, so that the final `muster()` call is demonstrably made through the abstraction, not through a concrete class.
 
 ```java
-import com.design.patterns.composite.component.FileSystemComponent;
+import com.design.patterns.composite.composite.Squad;
 ```
 
-Imports the component interface. The client declares its variables as `FileSystemComponent`, not as `File`. This is programming to the interface — the client code does not care about the concrete type after construction.
+Imports the concrete `Squad` class. Needed at the `new Squad(...)` construction sites and because the driver calls `Squad`-specific `add()`.
 
 ```java
-import com.design.patterns.composite.composite.Directory;
+import com.design.patterns.composite.leaf.Soldier;
 ```
 
-Imports the concrete `Directory` class. Needed only at the `new Directory(...)` construction site.
+Imports the concrete `Soldier` class. Needed only at the `new Soldier(...)` construction sites.
 
 ```java
-import com.design.patterns.composite.leaf.File;
+public class BattleFormationDesignPattern {
 ```
 
-Imports the concrete `File` class. Needed only at the `new File(...)` construction sites.
-
-```java
-public class CompositeDesignPattern {
-```
-
-The main driver class. Named after the pattern for easy identification.
+The main driver class. Named after the domain and the pattern for easy identification.
 
 ```java
     public static void main(String[] args) {
@@ -435,37 +439,45 @@ The JVM entry point. `static` because it is called without an instance. `String[
         System.out.println("Composite Design Pattern");
 ```
 
-Prints the pattern name to standard output as a banner. This is purely cosmetic — it identifies which pattern is being demonstrated when you run multiple pattern demos.
+Prints the pattern name to standard output as a banner. This is purely cosmetic — it identifies which pattern is being demonstrated when running multiple pattern demos.
 
 ```java
-        FileSystemComponent file1 = new File("Image1.png", 1024);
+        Squad alphaCommand = new Squad("Alpha Command");
 ```
 
-Creates the first leaf. The variable type is `FileSystemComponent` (the interface), not `File` (the concrete class). This is intentional: from this point forward, `file1` is treated as a `FileSystemComponent`. The concrete type is known only at the `new File(...)` call on the right-hand side. Using the interface type for the variable means you could swap in a different `FileSystemComponent` implementation without changing any downstream code.
-
-The arguments `"Image1.png"` (name) and `1024` (size in bytes) describe a 1 KB PNG image file.
+Creates the top-level composite, named `"Alpha Command"`, with an empty member list.
 
 ```java
-        FileSystemComponent file2 = new File("Image2.png", 1024);
+        alphaCommand.add(new Soldier("Rook", 120));
+        alphaCommand.add(new Soldier("Talon", 95));
 ```
 
-Creates the second leaf, identical in structure to `file1` but with a different name. Both are 1024 bytes.
+Creates two leaf `Soldier` instances inline and adds each directly to `alphaCommand`. This is the incremental "build the formation by calling `add`" style enabled by `Squad`'s no-members-required constructor. After these two calls, `alphaCommand` contains two soldiers.
 
 ```java
-        Directory directory = new Directory("MyDirectory", List.of(file1, file2));
+        Squad reconTeam = new Squad("Recon Team");
+        reconTeam.add(new Soldier("Scout-7", 60));
 ```
 
-Creates the composite. Several things happen here:
-
-- `new Directory("MyDirectory", ...)` — constructs a `Directory` named `"MyDirectory"`.
-- `List.of(file1, file2)` — creates an immutable `List<FileSystemComponent>` containing both leaf nodes. Note that `file1` and `file2` are of type `FileSystemComponent`, so `List.of(file1, file2)` produces a `List<FileSystemComponent>` — exactly what `Directory`'s constructor expects.
-- The variable type is `Directory` rather than `FileSystemComponent` because the driver wants to call `directory.display()` directly — though in this case `FileSystemComponent` would work equally well since `display()` is on the interface.
+Creates a second, independent `Squad` named `"Recon Team"` and adds one leaf `Soldier` to it.
 
 ```java
-        directory.display();
+        alphaCommand.add(reconTeam);
 ```
 
-The single client call that triggers the entire tree traversal. Because `directory` is a `Directory`, `Directory.display()` runs. It prints the directory name, then iterates over the child list (which contains `file1` and `file2`), calling `display()` on each. The result is that the full tree is printed with no additional logic in the client.
+This is the line that makes the structure recursive: `reconTeam` — itself a `Squad`, hence an `IUnit` — is added as a member of `alphaCommand`. `alphaCommand.add(IUnit)` accepts it without any special-casing, because `Squad` satisfies the same interface as `Soldier`. After this call, `alphaCommand` contains three members: two soldiers and one nested squad.
+
+```java
+        IUnit formation = alphaCommand;
+```
+
+Assigns `alphaCommand` to a variable declared with the interface type `IUnit`, not the concrete `Squad` type. This is programming to the interface: the line that follows calls `muster()` purely through the abstraction, proving that the client does not need to know it is holding a `Squad` (or, transitively, a formation of squads and soldiers) to use it correctly.
+
+```java
+        formation.muster();
+```
+
+The single client call that triggers the entire formation traversal. Because the runtime type of `formation` is `Squad`, `Squad.muster()` runs: it prints `"Squad : Alpha Command"`, then iterates its members — the two soldiers (printed directly) and the `reconTeam` squad (which recurses into its own `muster()`, printing `"Squad : Recon Team"` followed by its one soldier). The result is that the full formation is printed with no additional logic in the client.
 
 ```java
     }
@@ -476,7 +488,60 @@ Closes `main()` and the driver class.
 
 ---
 
-## Execution Flow
+## Why These Design Decisions
+
+### Why `List<IUnit>` and not `List<Soldier>`?
+
+```java
+// Correct — holds any IUnit (Soldier, Squad, or future types)
+private final List<IUnit> members = new ArrayList<>();
+
+// Wrong — restricts members to Soldier only; cannot contain Squad
+private final List<Soldier> members = new ArrayList<>();
+```
+
+If the field were typed as `List<Soldier>`, a `Squad` could never contain another `Squad`, and the recursive structure of the pattern would be impossible. The interface type is the mechanism that allows the formation to be heterogeneous.
+
+### Why `add()`/`remove()` instead of passing members through the constructor?
+
+```java
+// Current code — build incrementally
+Squad alphaCommand = new Squad("Alpha Command");
+alphaCommand.add(new Soldier("Rook", 120));
+
+// Alternative — build all at once
+Squad alphaCommand = new Squad("Alpha Command", List.of(rook, talon));
+```
+
+An incremental `add`/`remove` API matches how a real formation is assembled: it starts empty and gains personnel over time, and personnel can later be reassigned. It also lets a `Squad` be constructed before all of its members exist yet — which is exactly what happens with `reconTeam` here: `reconTeam` is built and populated first, then attached to `alphaCommand` with `alphaCommand.add(reconTeam)`. A constructor that demanded the full member list up front could not express "build this sub-formation, then attach it to the parent" as naturally.
+
+### Why a method reference `IUnit::muster` instead of an explicit lambda?
+
+```java
+// Method reference — idiomatic, concise, no noise
+members.forEach(IUnit::muster);
+
+// Equivalent lambda — correct but more verbose
+members.forEach(unit -> unit.muster());
+```
+
+The method reference `IUnit::muster` is a direct pointer to the `muster()` method on the interface type. It compiles to the same behaviour as the lambda. It is preferred because it is shorter, eliminates the need to name a parameter (`unit`) that adds no information, and reads naturally as "for each element, call its `muster` method."
+
+### Why is `members` `private final` and not just package-visible?
+
+```java
+private final List<IUnit> members = new ArrayList<>();
+```
+
+`private` means no other class — not even another class in the same `composite` package — can reach in and mutate the list directly, bypassing `add()`/`remove()`. `final` means the field always refers to the same `ArrayList` instance for the lifetime of the `Squad`; only the contents of that list change, never the reference itself. Together these make the encapsulation of the composite's internal structure airtight: the only way to change what a `Squad` contains is through its own `add()`/`remove()` methods.
+
+### Why does `Soldier` have no firepower validation or `Squad` no cycle check?
+
+This module is a canonical, minimal demonstration of the Composite pattern's structural mechanics (shared interface, recursive delegation), not a production command-and-control system. Concerns such as negative-firepower validation or preventing a squad from containing itself (a cycle) are real considerations in production code but are orthogonal to the pattern itself, so they are intentionally left out to keep the example focused.
+
+---
+
+## Execution Flow Trace
 
 Here is a step-by-step trace of what happens from the moment `main()` is called to the last line of output.
 
@@ -486,97 +551,126 @@ main() called
 ├── System.out.println("Composite Design Pattern")
 │   output: "Composite Design Pattern"
 │
-├── new File("Image1.png", 1024)       → file1 = File{name="Image1.png", size=1024}
+├── new Squad("Alpha Command")                → alphaCommand = Squad{squadName="Alpha Command", members=[]}
 │
-├── new File("Image2.png", 1024)       → file2 = File{name="Image2.png", size=1024}
+├── alphaCommand.add(new Soldier("Rook", 120))  → alphaCommand.members = [Soldier{Rook,120}]
+├── alphaCommand.add(new Soldier("Talon", 95))  → alphaCommand.members = [Soldier{Rook,120}, Soldier{Talon,95}]
 │
-├── List.of(file1, file2)              → immutable List<FileSystemComponent>[file1, file2]
+├── new Squad("Recon Team")                   → reconTeam = Squad{squadName="Recon Team", members=[]}
+├── reconTeam.add(new Soldier("Scout-7", 60))
+│                                              → reconTeam.members = [Soldier{Scout-7,60}]
 │
-├── new Directory("MyDirectory", list) → directory = Directory{
-│                                            directoryName="MyDirectory",
-│                                            fileSystemComponents=[file1, file2]
-│                                        }
+├── alphaCommand.add(reconTeam)                → alphaCommand.members = [Soldier{Rook,120}, Soldier{Talon,95}, reconTeam]
 │
-└── directory.display()
+├── IUnit formation = alphaCommand
+│
+└── formation.muster()                         (dispatches to Squad.muster() at runtime)
     │
-    ├── System.out.println("Directory : MyDirectory")
-    │   output: "Directory : MyDirectory"
+    ├── System.out.println("Squad : Alpha Command")
+    │   output: "Squad : Alpha Command"
     │
-    └── fileSystemComponents.stream().forEach(FileSystemComponent::display)
+    └── members.forEach(IUnit::muster)
         │
-        ├── [element 0 = file1] → file1.display()  (dispatched via FileSystemComponent::display)
-        │   └── System.out.println("File  :Image1.png with size : 1024")
-        │       output: "File  :Image1.png with size : 1024"
+        ├── [element 0 = Soldier Rook] → muster()
+        │   output: "Soldier : Rook with firepower : 120"
         │
-        └── [element 1 = file2] → file2.display()
-            └── System.out.println("File  :Image2.png with size : 1024")
-                output: "File  :Image2.png with size : 1024"
+        ├── [element 1 = Soldier Talon] → muster()
+        │   output: "Soldier : Talon with firepower : 95"
+        │
+        └── [element 2 = reconTeam]     → Squad.muster() called recursively
+            │
+            ├── System.out.println("Squad : Recon Team")
+            │   output: "Squad : Recon Team"
+            │
+            └── members.forEach(IUnit::muster)
+                │
+                └── [element 0 = Soldier Scout-7] → muster()
+                    output: "Soldier : Scout-7 with firepower : 60"
 ```
 
-**Final console output:**
+The key moment in this trace is the polymorphic dispatch inside `forEach`. The list sees each element as `IUnit`. When `muster()` is called on an element, the JVM looks up the actual runtime type of that object and calls its implementation. For Rook, Talon, and Scout-7, the runtime type is `Soldier`, so `Soldier.muster()` runs and terminates. For `reconTeam`, the runtime type is `Squad`, so `Squad.muster()` runs — which in turn calls `forEach` on `reconTeam`'s own members, recursing one level deeper. If `reconTeam` itself contained another `Squad`, the same mechanism would recurse again, to any depth.
+
+---
+
+## Expected Output
+
+Running the driver produces exactly this console output (captured from an actual build and run of this module):
 
 ```
 Composite Design Pattern
-Directory : MyDirectory
-File  :Image1.png with size : 1024
-File  :Image2.png with size : 1024
+Squad : Alpha Command
+Soldier : Rook with firepower : 120
+Soldier : Talon with firepower : 95
+Squad : Recon Team
+Soldier : Scout-7 with firepower : 60
 ```
 
-The key moment in this trace is the polymorphic dispatch inside `forEach`. The stream sees each element as `FileSystemComponent`. When it calls `display()` on an element, the JVM looks up the actual runtime type of that object and calls its implementation. For `file1` and `file2`, the runtime type is `File`, so `File.display()` runs. If one of those elements were instead a nested `Directory`, `Directory.display()` would run — which would in turn call `forEach` on its own children, and so on down the tree.
+---
+
+## How to Run
+
+From inside this module directory:
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean compile
+java -cp target/classes com.design.patterns.composite.BattleFormationDesignPattern
+```
+
+(Drop `-o` if offline dependency resolution fails; the parent POM's dependencies should already be cached from a prior build.)
 
 ---
 
 ## Real-World Use Cases
 
-### 1. Operating System File System
+### 1. Military Command and Control Structures
 
-The canonical example. Every OS file system is a Composite: files are leaves (they hold data, they have no children), directories are composites (they contain files and other directories). Operations like `du -sh` (disk usage), `find`, `ls -R`, and `cp -r` all traverse the tree uniformly — they do not special-case files vs. directories at the call site. The traversal logic is in the recursive descent, not in the command implementation.
+The domain modeled here. A battlefield force is a Composite: individual soldiers are leaves (they take orders, they have no subordinate units), squads and platoons are composites (they contain soldiers and other squads). Operations like "muster the formation," "report total headcount," or "broadcast an order" all traverse the hierarchy uniformly — they do not special-case an individual soldier vs. a squad at the call site. The traversal logic is in the recursive descent, not in the command implementation.
 
-### 2. GUI Widget Hierarchy (Swing, AWT, Android Views)
+### 2. Sports Team Roster with Sub-Units
 
-In a graphical user interface, a `Panel` (or `ViewGroup` in Android) contains other widgets: `Button`, `Label`, `TextField`, and other `Panel` objects. All of them implement a common `Component` interface with methods like `paint()`, `resize()`, `handleEvent()`. When the windowing system asks the root panel to repaint, it recursively repaints all children. Adding a new widget type (e.g., `ProgressBar`) requires only that it implement `Component` — no repaint logic changes.
+A sports league roster is a tree. At the leaves are individual athletes. At the branches are line units or squads (an offensive line, a special-teams unit) that group athletes, and those groupings can themselves be grouped into a full roster. An operation like `getTotalSalaryCap()` or `printLineup()` naturally recurses: a leaf athlete returns their own value, a unit returns the sum over its members.
 
-### 3. Organization Chart (Manager/Employee Hierarchy)
-
-A company org chart is a tree. At the leaves are individual contributors (employees with no direct reports). At the branches are managers, each managing a list of `Employee` nodes (which can themselves be managers). An operation like `getTotalHeadcount()` or `getTotalSalaryBudget()` naturally recurses: a leaf employee returns their own value, a manager returns their own value plus the sum over all direct reports. The Composite pattern models this without any type-checking in the payroll or reporting code.
-
-### 4. HTML DOM Tree
-
-Every HTML document is a tree of nodes. Text nodes (`#text`) and void elements (`<img>`, `<br>`) are leaves. Container elements (`<div>`, `<section>`, `<ul>`) are composites holding child nodes. Browser rendering engines traverse this tree uniformly to compute layout, apply styles, paint pixels, and dispatch events. JavaScript's `element.querySelectorAll(selector)` is a Composite-pattern tree traversal — it works identically whether the root is a single `<span>` or the entire `<body>`.
-
-### 5. Menu System with Submenus
-
-A menu bar contains menu items. Some menu items open a submenu (composite), others trigger an action directly (leaf). The `render()` or `show()` operation on a menu item is uniform: a leaf item displays its label and registers a click handler; a composite item displays its label and, on hover, calls `render()` on each of its children. This allows arbitrarily deep submenu nesting with no special handling at the menu bar level.
-
-### 6. Bill of Materials (BOM) in Manufacturing
+### 3. Bill of Materials (BOM) in Manufacturing
 
 A manufactured product is described by a Bill of Materials — a hierarchical list of components. A finished good (e.g., a laptop) is a composite containing sub-assemblies (motherboard, display panel, chassis) which are themselves composites containing individual parts (capacitors, screws, hinges) which are leaves. Operations like `getTotalCost()`, `getTotalWeight()`, and `getPartCount()` are all Composite-pattern recursive computations: each composite sums the result across its children, each leaf returns its own value.
 
+### 4. Orchestral Score with Sections
+
+An orchestral score groups individual instrument parts (leaves) into sections (strings, brass, woodwinds), and a full score is a composite of sections. Rehearsal tooling that needs to "mute this group" or "transpose this group" operates uniformly on a single instrument part or an entire section through the same interface, without the tool caring which one it was handed.
+
+### 5. Tournament Bracket Structure
+
+A tournament bracket is a tree of matches: a leaf is a single scheduled match between two competitors, and a composite round groups several matches (or sub-rounds) together. An operation like `printSchedule()` or `countRemainingMatches()` recurses over the bracket uniformly, regardless of how many rounds deep the tournament goes.
+
+### 6. Supply Convoy Formation
+
+A logistics convoy is composed of individual vehicles (leaves) and sub-convoys (composites) escorting a larger movement. A `reportFuelConsumption()` operation sums fuel use across an entire convoy tree the same way whether it is applied to a single truck or the whole formation, because every node — vehicle or sub-convoy — implements the same reporting contract.
+
 ---
 
-## Extending This Example — Nested Directories
+## Extending This Example — Deeper Nesting
 
-The current demo has one level of nesting: a directory containing two files. The real power of the Composite pattern becomes apparent when you add a `Directory` _inside_ another `Directory`. No changes to `FileSystemComponent`, `File`, or `Directory` are needed — you only change the driver.
+The current demo already has two levels of nesting: `alphaCommand` directly contains two soldiers and a `reconTeam` sub-squad, and `reconTeam` contains one soldier. The pattern extends to any depth with no changes to `IUnit`, `Soldier`, or `Squad` — only the driver needs to grow.
 
 ```java
-public class CompositeDesignPattern {
+public class BattleFormationDesignPattern {
     public static void main(String[] args) {
-        System.out.println("Composite Design Pattern — Nested");
+        System.out.println("Composite Design Pattern — Deeper Nesting");
 
-        // Leaves
-        FileSystemComponent img1 = new File("Image1.png", 1024);
-        FileSystemComponent img2 = new File("Image2.png", 2048);
-        FileSystemComponent doc1 = new File("Notes.txt", 512);
-        FileSystemComponent doc2 = new File("Report.pdf", 4096);
+        Squad alphaCommand = new Squad("Alpha Command");
+        alphaCommand.add(new Soldier("Rook", 120));
+        alphaCommand.add(new Soldier("Talon", 95));
 
-        // Inner composites
-        Directory imagesDir = new Directory("Images", List.of(img1, img2));
-        Directory docsDir   = new Directory("Documents", List.of(doc1, doc2));
+        Squad reconTeam = new Squad("Recon Team");
+        reconTeam.add(new Soldier("Scout-7", 60));
+        alphaCommand.add(reconTeam);
 
-        // Outer composite containing inner composites
-        Directory rootDir = new Directory("Root", List.of(imagesDir, docsDir));
+        Squad forwardObservers = new Squad("Forward Observers");
+        forwardObservers.add(new Soldier("Marker-2", 40));
+        reconTeam.add(forwardObservers);
 
-        rootDir.display();
+        IUnit formation = alphaCommand;
+        formation.muster();
     }
 }
 ```
@@ -584,95 +678,35 @@ public class CompositeDesignPattern {
 Expected output:
 
 ```
-Composite Design Pattern — Nested
-Directory : Root
-Directory : Images
-File  :Image1.png with size : 1024
-File  :Image2.png with size : 2048
-Directory : Documents
-File  :Notes.txt with size : 512
-File  :Report.pdf with size : 4096
+Composite Design Pattern — Deeper Nesting
+Squad : Alpha Command
+Soldier : Rook with firepower : 120
+Soldier : Talon with firepower : 95
+Squad : Recon Team
+Soldier : Scout-7 with firepower : 60
+Squad : Forward Observers
+Soldier : Marker-2 with firepower : 40
 ```
 
-Trace of `rootDir.display()`:
+Trace of `formation.muster()` for this extended tree:
 
 ```
-rootDir.display()
-├── prints "Directory : Root"
-└── forEach over [imagesDir, docsDir]
-    ├── imagesDir.display()           (Directory.display() called recursively)
-    │   ├── prints "Directory : Images"
-    │   └── forEach over [img1, img2]
-    │       ├── img1.display()  → "File  :Image1.png with size : 1024"
-    │       └── img2.display()  → "File  :Image2.png with size : 2048"
-    └── docsDir.display()             (Directory.display() called recursively again)
-        ├── prints "Directory : Documents"
-        └── forEach over [doc1, doc2]
-            ├── doc1.display()  → "File  :Notes.txt with size : 512"
-            └── doc2.display()  → "File  :Report.pdf with size : 4096"
+alphaCommand.muster()
+├── prints "Squad : Alpha Command"
+└── forEach over [Rook, Talon, reconTeam]
+    ├── Rook.muster()  → "Soldier : Rook with firepower : 120"
+    ├── Talon.muster()  → "Soldier : Talon with firepower : 95"
+    └── reconTeam.muster()             (Squad.muster() called recursively)
+        ├── prints "Squad : Recon Team"
+        └── forEach over [Scout-7, forwardObservers]
+            ├── Scout-7.muster()  → "Soldier : Scout-7 with firepower : 60"
+            └── forwardObservers.muster()             (Squad.muster() called recursively again)
+                ├── prints "Squad : Forward Observers"
+                └── forEach over [Marker-2]
+                    └── Marker-2.muster()  → "Soldier : Marker-2 with firepower : 40"
 ```
 
-This is the Composite pattern's recursive power on display. The client (`main`) calls `rootDir.display()` once. Every directory at every depth traverses its own children. The indentation in the output reflects the tree depth, but the caller has no concept of depth — the recursion is entirely self-managed by the composite objects.
-
-Notice that the driver code has zero `instanceof` checks and zero conditional logic. It simply creates the tree and calls `display()` at the root. Adding a third level of nesting (a `Backups` directory inside `Documents`) requires only adding three lines to the driver — not a single change to `Directory` or `File`.
-
----
-
-## Key Design Decisions
-
-### Why `List<FileSystemComponent>` and not `List<File>`?
-
-```java
-// Correct — holds any FileSystemComponent (File, Directory, or future types)
-List<FileSystemComponent> fileSystemComponents = new ArrayList<>();
-
-// Wrong — restricts children to File only; cannot contain Directory
-List<File> fileSystemComponents = new ArrayList<>();
-```
-
-If the field were typed as `List<File>`, a `Directory` could never contain another `Directory`, and the recursive structure of the pattern would be impossible. The interface type is the mechanism that allows the tree to be heterogeneous.
-
-### Why a method reference `FileSystemComponent::display` instead of an explicit lambda?
-
-```java
-// Method reference — idiomatic, concise, no noise
-fileSystemComponents.stream().forEach(FileSystemComponent::display);
-
-// Equivalent lambda — correct but more verbose
-fileSystemComponents.stream().forEach(component -> component.display());
-```
-
-The method reference `FileSystemComponent::display` is an instance method reference on the interface type. It is a direct pointer to the `display()` method. There is no functional difference — the lambda and the method reference compile to the same bytecode behavior. The method reference is preferred because it is shorter, eliminates the need to name a parameter (`component`) that adds no information, and reads naturally as "for each element, call its `display` method."
-
-### Why `List.of()` in the driver instead of `new ArrayList<>()`?
-
-```java
-Directory directory = new Directory("MyDirectory", List.of(file1, file2));
-```
-
-`List.of(file1, file2)` creates an **immutable** list. In the driver, the list of children is constructed once and passed directly to the `Directory` constructor. There is no need to add or remove elements after construction in this demo. Using an immutable list is safer — it cannot be accidentally modified through the reference returned by a hypothetical `getChildren()` getter, and it communicates intent (this list is fixed at construction).
-
-`ArrayList` (used inside `Directory` for the field) remains appropriate for the internal storage when you want to support future `addChild()` / `removeChild()` mutations. The distinction is: `List.of()` for the construction-time snapshot, `ArrayList` as the underlying mutable storage inside the container that owns the data.
-
-### Why `ArrayList` for the internal field initialization, even though it gets overwritten?
-
-```java
-List<FileSystemComponent> fileSystemComponents = new ArrayList<>();
-```
-
-The `= new ArrayList<>()` field initializer is redundant in this code because the constructor immediately overwrites it with `this.fileSystemComponents = fileSystemComponents`. However, it is a defensive coding habit: if someone were to add a no-argument constructor, or if a serialization framework instantiated the class without calling the defined constructor, the field would still be a valid (empty) list rather than `null`. Null-safe initialization of collection fields is a widely recommended practice.
-
-### The `fileSystemComponents` field is not `private` — a real encapsulation gap
-
-```java
-// Current code — package-private (a bug-in-waiting)
-List<FileSystemComponent> fileSystemComponents = new ArrayList<>();
-
-// Should be
-private List<FileSystemComponent> fileSystemComponents = new ArrayList<>();
-```
-
-Without an explicit access modifier, Java defaults to package-private visibility. Any class in the `com.design.patterns.composite.composite` package can read and write this field directly, bypassing any future validation or notification logic in `Directory`. This is a minor issue in a demo with only one class per package, but it would be a real encapsulation violation in a production codebase. The field should be `private`. If external access is needed, expose it through a method: either a read-only `getChildren()` returning an unmodifiable view, or `addChild()` / `removeChild()` methods that let `Directory` enforce invariants (e.g., prevent circular references).
+Notice that the driver code has zero `instanceof` checks and zero conditional logic. It simply builds the formation with `add()` calls and triggers one `muster()` at the top. Adding a third level of nesting requires only a few more `add()` calls in the driver — not a single change to `Squad` or `Soldier`.
 
 ---
 
@@ -682,9 +716,9 @@ The Composite Design Pattern solves the part-whole hierarchy problem by making c
 
 | Role | Class | Responsibility |
 |---|---|---|
-| Component | `FileSystemComponent` | Declares the common `display()` contract |
-| Leaf | `File` | Terminal node; fulfills the contract by printing its own data |
-| Composite | `Directory` | Branch node; fulfills the contract by delegating to all children |
-| Client | `CompositeDesignPattern` | Builds the tree and calls `display()` without caring about node types |
+| Component | `IUnit` | Declares the common `muster()` contract |
+| Leaf | `Soldier` | Terminal unit; fulfills the contract by printing its own data |
+| Composite | `Squad` | Branch unit; fulfills the contract by delegating to all members, and exposes `add()`/`remove()` to manage them |
+| Client | `BattleFormationDesignPattern` | Builds the formation with `add()` calls and calls `muster()` once, through the `IUnit` abstraction, without caring about unit types |
 
-The pattern's power is proportional to the depth and variety of the tree. In the flat two-file demo the benefit is modest. In a real file system with thousands of files across hundreds of nested directories — or a GUI with deeply nested panels, or a corporate org chart with five levels of management — the elimination of `instanceof`-based branching from every tree traversal operation becomes significant. The Composite pattern pushes type-awareness down into the objects themselves and out of the code that uses them.
+The pattern's power is proportional to the depth and variety of the formation. In this small three-node demo the benefit is modest. In a real command structure with thousands of personnel across many nested squads and platoons — or a manufacturing BOM with thousands of parts, or a tournament bracket with many rounds — the elimination of `instanceof`-based branching from every tree traversal operation becomes significant. The Composite pattern pushes type-awareness down into the objects themselves and out of the code that uses them.

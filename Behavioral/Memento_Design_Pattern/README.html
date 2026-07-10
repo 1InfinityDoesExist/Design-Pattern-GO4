@@ -1,198 +1,270 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Memento Design Pattern</title>
-  <style>
-@page { size: A4; margin: 2cm; }
-body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
-h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
-h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
-h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
-h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
-pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
-code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
-pre code { background: transparent; padding: 0; }
-blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
-table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
-th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
-th { background: #e8eef8; font-weight: bold; }
-a  { color: #2a5ea8; }
-ul, ol { margin: 4pt 0 4pt 18pt; }
-</style>
-</head>
-<body>
-<h1 id="memento-design-pattern">Memento Design Pattern</h1>
-<h2 id="intent">Intent</h2>
-<p>Capture an object's internal state so it can be <strong>saved and later restored</strong> — without exposing that object's internals to the outside world. In one word: <strong>undo</strong>. You snapshot an object now, keep the snapshot somewhere, and roll the object back to it later, all while the object's private data stays private.</p>
-<p>Here the object is a <strong><code>Document</code></strong> you keep writing to; each snapshot is a <strong><code>DocumentMemento</code></strong>; and a <strong><code>History</code></strong> keeps the snapshots so you can restore an earlier version.</p>
-<h2 id="uml-class-diagram">UML class diagram</h2>
-<pre><code>+---------------+   createMemento()  +------------------+
-|   Document    |-------------------&gt;| DocumentMemento  |
-|  (originator) |                    |    (memento)     |
-| -content      |&lt;-------------------| -content {frozen}|
-| +write(text)  |  restoreFromMemento| +getSavedContent |
-+---------------+                    +---------^--------+
-                                               | stores
-                                     +---------+--------+
-                                     |     History      |
-                                     |   (caretaker)    |
-                                     | -mementos : List |
-                                     | +addMemento/get  |
-                                     +------------------+
-</code></pre>
+<!doctype html><html><head><meta charset='utf-8'><title>Memento Design Pattern</title><style>body{font-family:'DejaVu Sans',Arial,sans-serif;font-size:11px;margin:32px 40px;color:#1a1a1a}
+h1{font-size:20px;border-bottom:2px solid #2c5c88;padding-bottom:6px;color:#2c5c88}
+h2{font-size:15px;color:#2c5c88;margin-top:22px;border-bottom:1px solid #ddd;padding-bottom:3px}
+h3{font-size:12.5px;color:#333;margin-top:16px}
+pre{background:#f6f8fa;border:1px solid #e1e4e8;border-radius:4px;padding:8px 10px;font-size:9.5px;white-space:pre-wrap}
+code{font-family:'DejaVu Sans Mono',monospace;background:#f0f2f4;padding:1px 3px;border-radius:2px;font-size:9.5px}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ccc;padding:4px 8px;font-size:10px}
+th{background:#eef2f6}blockquote{border-left:3px solid #2c5c88;margin-left:0;padding-left:12px;color:#444}</style></head><body><h1>Memento Design Pattern</h1>
+<h2>Intent</h2>
+<p>Capture an object's internal state so it can be <strong>saved and later restored</strong> — without exposing that object's internals to the outside world. In one word: <strong>rollback</strong>. You snapshot an object now, keep the snapshot somewhere, and roll the object back to it later, all while the object's private data stays private to the object that owns it.</p>
+<p>Here the object is a <strong><code>ShoppingCart</code></strong> that items keep getting added to; each snapshot is a <strong><code>CartSnapshot</code></strong>; and a <strong><code>CartCheckpoint</code></strong> keeps the snapshots so a risky bulk-add can be undone if it turns out to be a mistake.</p>
+<p>This is the <strong>canonical GoF Memento</strong>, implemented with the textbook "wide interface to the originator, narrow interface to the caretaker" trick: the memento's state accessors are <strong>package-private</strong>, and the memento lives in the <strong>same package as its originator</strong> — so only <code>ShoppingCart</code> can ever read or write what's inside a <code>CartSnapshot</code>. <code>CartCheckpoint</code>, sitting in a different package, can hold and hand back snapshots but has no way to look inside one; the compiler enforces this, not just convention.</p>
 <hr />
-<h2 id="the-three-roles-this-pattern-is-defined-by-them">The three roles (this pattern is defined by them)</h2>
-<pre><code>originator/Document          the ORIGINATOR  — the object whose state we snapshot &amp; restore
-memento/DocumentMemento      the MEMENTO     — an immutable snapshot of that state
-caretaker/History            the CARETAKER   — stores mementos, but never looks inside them
+<h2>UML class diagram</h2>
+<pre><code>package com.design.patterns.memento.originator          package com.design.patterns.memento.caretaker
++-----------------------------+   creates   +-------------------------+        +----------------------+
+|         ShoppingCart        |------------&gt;|      CartSnapshot       |        |    CartCheckpoint    |
+|         (originator)        |             |        (memento)        |        |      (caretaker)     |
++-----------------------------+             +-------------------------+        +----------------------+
+| - manifest : String         |             | - manifest : String     |        | - snapshots          |
++-----------------------------+             +-------------------------+        |     : List&lt;CartSnapshot&gt;
+| + ShoppingCart(manifest)    |             | CartSnapshot(manifest)  |&lt;-------| +----------------------+
+| + addItem(line) : void      |   reads     |   package-private ctor  | stores | + CartCheckpoint()    |
+| + getManifest() : String    |------------&gt;| String getSavedManifest()|opaque | + saveSnapshot(s): void|
+| + createSnapshot()          |             |   package-private       |snapshots| + getSnapshot(i)     |
+|     : CartSnapshot          |             |   getter                |        |     : CartSnapshot   |
+| + restoreSnapshot(s)        |             +-------------------------+        +----------------------+
+|     : void                  |
++-----------------------------+
+        ^
+        | uses (add item / snapshot / restore)
++-----------------------------+
+|  ShoppingCartRollbackDemo   |
+|  package com.design.patterns.memento
++-----------------------------+
+| + main(args: String[])      |
++-----------------------------+
+</code></pre>
+<p>Note that <code>CartSnapshot</code>'s constructor and <code>getSavedManifest()</code> carry <strong>no access modifier</strong>, i.e. package-private/default access. <code>CartCheckpoint</code> lives in <code>com.design.patterns.memento.caretaker</code> — a different package — so it can declare a field of type <code>CartSnapshot</code> and pass the reference around, but it cannot call either member. Only classes in <code>com.design.patterns.memento.originator</code> (in practice, only <code>ShoppingCart</code>) can.</p>
+<hr />
+<h2>The players</h2>
+<pre><code>originator/ShoppingCart        the ORIGINATOR  — owns the cart contents, snapshots them, restores from a snapshot
+originator/CartSnapshot        the MEMENTO     — an immutable, opaque-to-outsiders snapshot of the cart manifest
+caretaker/CartCheckpoint       the CARETAKER   — stores snapshots for later restore, never opens them
 
-MementoDesignPattern         the demo — write, snapshot, write more, then roll back
+ShoppingCartRollbackDemo       the demo — add items, snapshot, do a risky bulk-add, snapshot, then roll back
 </code></pre>
 <ul>
-<li><strong>Originator</strong> — creates a memento of its own state and knows how to restore itself from one.</li>
-<li><strong>Memento</strong> — a passive value object holding the saved state. It's the only thing that crosses between originator and caretaker.</li>
-<li><strong>Caretaker</strong> — holds mementos for safe-keeping (the history/undo stack) but treats them as <strong>opaque</strong> — it never reads or edits the state inside.</li>
+<li><strong>Originator (<code>ShoppingCart</code>)</strong> — creates a snapshot of its own state (<code>createSnapshot()</code>) and knows how to restore itself from one (<code>restoreSnapshot(...)</code>). It is the only class that ever calls <code>CartSnapshot</code>'s constructor or its getter, which is exactly why it lives in the same package as the memento.</li>
+<li><strong>Memento (<code>CartSnapshot</code>)</strong> — a passive value object holding the saved manifest. Its type is <code>public</code> (so it can be named, stored, and passed around by any package), but its constructor and its state-reading method are package-private, so no code outside <code>com.design.patterns.memento.originator</code> can ever construct one or read what's inside it.</li>
+<li><strong>Caretaker (<code>CartCheckpoint</code>)</strong> — holds snapshots for safe-keeping (the rollback stack) and treats them as <strong>opaque</strong>. It never reads or edits the manifest inside — and after this fix, it structurally <strong>cannot</strong>, even if a future maintainer tried, because the compiler would reject the call.</li>
 </ul>
 <hr />
-<h2 id="the-code-line-by-line">The code, line by line</h2>
-<h3 id="document-the-originator"><code>Document</code> — the originator</h3>
-<pre><code class="language-java">public class Document {
+<h2>The code, line by line</h2>
+<h3><code>ShoppingCart</code> — the originator (<code>originator/ShoppingCart.java</code>)</h3>
+<pre><code class="language-java">package com.design.patterns.memento.originator;
 
-    private String content;
+public class ShoppingCart {
 
-    public Document(String content) { this.content = content; }
+    private String manifest;
 
-    public void write(String text) { this.content += text; }
-
-    public String getContent() { return this.content; }
-
-    public DocumentMemento createMemento() {
-        return new DocumentMemento(this.content);
+    public ShoppingCart(String manifest) {
+        this.manifest = manifest;
     }
 
-    public void restoreFromMemento(DocumentMemento documentMemento) {
-        this.content = documentMemento.getSavedContent();
+    public void addItem(String line) {
+        this.manifest += line;
+    }
+
+    public String getManifest() {
+        return this.manifest;
+    }
+
+    public CartSnapshot createSnapshot() {
+        return new CartSnapshot(this.manifest);
+    }
+
+    public void restoreSnapshot(CartSnapshot snapshot) {
+        this.manifest = snapshot.getSavedManifest();
+    }
+
+}
+</code></pre>
+<ul>
+<li><code>package com.design.patterns.memento.originator;</code> — places <code>ShoppingCart</code> in the <code>originator</code> package. This package is now shared with <code>CartSnapshot</code>, which is what lets the two collaborate through package-private members while staying closed off to everyone else.</li>
+<li><code>public class ShoppingCart {</code> — the class is <code>public</code> so the demo class (a different package, <code>com.design.patterns.memento</code>) and the caretaker package can reference the <em>type</em>, hold variables of it, and call its public API.</li>
+<li><code>private String manifest;</code> — the state being protected and snapshotted: a running, line-per-item text manifest of the cart's contents. <code>private</code> means only <code>ShoppingCart</code>'s own methods can read or write it directly; no external code, not even <code>CartSnapshot</code>, touches this field.</li>
+<li><code>public ShoppingCart(String manifest) { this.manifest = manifest; }</code> — the constructor seeds the initial manifest, e.g. <code>"2x Espresso Beans 1kg\n"</code> in the demo.</li>
+<li><code>public void addItem(String line) { this.manifest += line; }</code> — the "normal work" method: it appends an item line and mutates <code>manifest</code>. Everything this pattern exists to let you roll back happens through calls like this one.</li>
+<li><code>public String getManifest() { return this.manifest; }</code> — a plain, safe read accessor for the current manifest; used by the demo to print the final result after restore.</li>
+<li><code>public CartSnapshot createSnapshot() { return new CartSnapshot(this.manifest); }</code> — the <strong>save</strong> operation. <code>ShoppingCart</code> builds a brand-new <code>CartSnapshot</code>, handing it the <em>current</em> <code>manifest</code>. Because <code>CartSnapshot</code>'s constructor is package-private and <code>ShoppingCart</code> sits in the same package, this call compiles; nothing outside <code>originator</code> could write this line. The originator decides exactly what state gets captured — here, all of it.</li>
+<li><code>public void restoreSnapshot(CartSnapshot snapshot) { this.manifest = snapshot.getSavedManifest(); }</code> — the <strong>rollback</strong> operation. <code>ShoppingCart</code> takes a snapshot handed to it (typically fetched from <code>CartCheckpoint</code>) and calls <code>getSavedManifest()</code> on it — legal only because <code>ShoppingCart</code> and <code>CartSnapshot</code> share a package. The cart's <em>entire</em> state (<code>manifest</code>) is overwritten from the snapshot's saved value, so the restore is complete, not partial.</li>
+</ul>
+<h3><code>CartSnapshot</code> — the memento (<code>originator/CartSnapshot.java</code>)</h3>
+<pre><code class="language-java">package com.design.patterns.memento.originator;
+
+public class CartSnapshot {
+
+    private String manifest;
+
+    CartSnapshot(String manifest) {
+        this.manifest = manifest;
+    }
+
+    String getSavedManifest() {
+        return this.manifest;
     }
 }
 </code></pre>
 <ul>
-<li><strong><code>private String content</code></strong> — the state we care about protecting and snapshotting. It's private; nobody edits it except through <code>Document</code>'s own methods.</li>
-<li><strong><code>write(text)</code></strong> — mutates the state (appends text). This is the "normal work" that we might later want to undo.</li>
-<li><strong><code>createMemento()</code></strong> — the <strong>save</strong> operation. The document packages a copy of its <em>current</em> <code>content</code> into a new <code>DocumentMemento</code> and hands it out. Note the originator is the one that <em>builds</em> the memento — it decides what goes in, so it controls exactly which parts of its state are captured.</li>
-<li><strong><code>restoreFromMemento(m)</code></strong> — the <strong>undo</strong> operation. The document reads the saved content back out of a memento and overwrites its own <code>content</code> with it. Again the originator is the one <em>reading</em> the memento — restoring is its responsibility, not the caretaker's.</li>
+<li><code>package com.design.patterns.memento.originator;</code> — the deliberate, load-bearing line of this whole module: putting the memento in the <em>same package as its originator</em> is what makes package-private access mean "only the originator" instead of "only itself."</li>
+<li><code>public class CartSnapshot {</code> — the <strong>class</strong> stays <code>public</code>. This is required so that <code>CartCheckpoint</code>, living in the <code>caretaker</code> package, can still declare a field of type <code>List&lt;CartSnapshot&gt;</code> and method signatures like <code>getSnapshot(int) : CartSnapshot</code>. Hiding the type entirely was not an option — the caretaker legitimately needs to <em>hold and pass</em> the type; it just must never <em>open</em> it.</li>
+<li><code>private String manifest;</code> — the frozen copy of the originator's manifest at the moment of the snapshot. <code>private</code> even from <code>ShoppingCart</code> directly — the only way in or out is through the snapshot's own (package-private) constructor and getter.</li>
+<li><code>CartSnapshot(String manifest) { this.manifest = manifest; }</code> — <strong>no access modifier</strong> = package-private (default access). Only code in <code>com.design.patterns.memento.originator</code> can call <code>new CartSnapshot(...)</code>. In practice that's only <code>ShoppingCart.createSnapshot()</code>. <code>CartCheckpoint</code> cannot construct one itself, and nothing in the <code>caretaker</code> package could even if it tried — this line would fail to compile there.</li>
+<li><code>String getSavedManifest() { return this.manifest; }</code> — also package-private. Only classes in <code>originator</code> (i.e., <code>ShoppingCart</code>) can call it. This is the fix for the classic Memento pitfall: a getter like this being <code>public</code> would let <em>any</em> class — including <code>CartCheckpoint</code> — call <code>snapshot.getSavedManifest()</code> and read the cart's saved contents without going through <code>ShoppingCart</code> at all, silently breaking encapsulation. Restricting it to package-private, combined with placing the memento inside the originator's package, makes that impossible: <code>CartCheckpoint</code> (package <code>caretaker</code>) referencing <code>snapshot.getSavedManifest()</code> is a compile error, not just bad practice.</li>
 </ul>
-<h3 id="documentmemento-the-memento"><code>DocumentMemento</code> — the memento</h3>
-<pre><code class="language-java">public class DocumentMemento {
+<h3><code>CartCheckpoint</code> — the caretaker (<code>caretaker/CartCheckpoint.java</code>)</h3>
+<pre><code class="language-java">package com.design.patterns.memento.caretaker;
 
-    private String content;
+import java.util.ArrayList;
+import java.util.List;
 
-    public DocumentMemento(String content) { this.content = content; }
+import com.design.patterns.memento.originator.CartSnapshot;
 
-    public String getSavedContent() { return this.content; }
+public class CartCheckpoint {
+
+    private List&lt;CartSnapshot&gt; snapshots;
+
+    public CartCheckpoint() {
+        this.snapshots = new ArrayList&lt;&gt;();
+    }
+
+    public void saveSnapshot(CartSnapshot snapshot) {
+        this.snapshots.add(snapshot);
+    }
+
+    public CartSnapshot getSnapshot(int index) {
+        return this.snapshots.get(index);
+    }
 }
 </code></pre>
 <ul>
-<li>A tiny, <strong>passive</strong> value object: a constructor that captures the state and a getter to read it back. It has no logic — it's just a labeled snapshot.</li>
-<li>It stores a <code>String</code>, which is <strong>immutable</strong> in Java, so the snapshot is a true frozen copy: later <code>write(...)</code> calls on the document cannot alter what's already inside a memento. (If the state were a <em>mutable</em> object, the memento would need to store a <strong>defensive copy</strong> — see <em>Why immutability matters</em> below.)</li>
+<li><code>package com.design.patterns.memento.caretaker;</code> — a package distinct from <code>originator</code>. This distinction is what gives the package-private access modifiers on <code>CartSnapshot</code> real teeth: <code>CartCheckpoint</code> is outside the circle of trust.</li>
+<li><code>import java.util.ArrayList; import java.util.List;</code> — standard JDK collection types used to hold the rollback checkpoints.</li>
+<li><code>import com.design.patterns.memento.originator.CartSnapshot;</code> — imports the memento <strong>type</strong> so <code>CartCheckpoint</code> can name it in field and method signatures. Importing the type does not grant access to its package-private members — Java access control is enforced per-member, independent of imports.</li>
+<li><code>public class CartCheckpoint {</code> — <code>public</code> so the demo class can construct and use it.</li>
+<li><code>private List&lt;CartSnapshot&gt; snapshots;</code> — the checkpoint list: an ordered list of opaque cart snapshots. <code>CartCheckpoint</code> never looks inside any element; it only ever adds to, or indexes into, this list.</li>
+<li><code>public CartCheckpoint() { this.snapshots = new ArrayList&lt;&gt;(); }</code> — starts with an empty checkpoint list.</li>
+<li><code>public void saveSnapshot(CartSnapshot snapshot) { this.snapshots.add(snapshot); }</code> — the <strong>save</strong> side of the caretaker's job: append a snapshot handed to it by the client. Notice the parameter is stored whole — <code>CartCheckpoint</code> never calls anything on <code>snapshot</code> here, and structurally cannot (there is nothing public to call besides object identity methods inherited from <code>Object</code>).</li>
+<li><code>public CartSnapshot getSnapshot(int index) { return this.snapshots.get(index); }</code> — the <strong>retrieve</strong> side: hand a stored snapshot back out by index, unopened, for the <em>caller</em> (the demo, which then passes it to <code>ShoppingCart.restoreSnapshot</code>) to use. <code>CartCheckpoint</code> itself never reads what's inside.</li>
 </ul>
-<h3 id="history-the-caretaker"><code>History</code> — the caretaker</h3>
-<pre><code class="language-java">public class History {
+<h3><code>ShoppingCartRollbackDemo</code> — the demo / client (<code>ShoppingCartRollbackDemo.java</code>)</h3>
+<pre><code class="language-java">package com.design.patterns.memento;
 
-    private List&lt;DocumentMemento&gt; mementos;
+import com.design.patterns.memento.caretaker.CartCheckpoint;
+import com.design.patterns.memento.originator.ShoppingCart;
 
-    public History() { this.mementos = new ArrayList&lt;&gt;(); }
+public class ShoppingCartRollbackDemo {
 
-    public void addMemento(DocumentMemento documentMemento) { this.mementos.add(documentMemento); }
+    public static void main(String[] args) {
+        System.out.println(&quot;Shopping Cart Bulk-Update Rollback&quot;);
+        ShoppingCart cart = new ShoppingCart(&quot;2x Espresso Beans 1kg\n&quot;);
+        CartCheckpoint checkpoint = new CartCheckpoint();
 
-    public DocumentMemento getMemento(int index) { return this.mementos.get(index); }
+        cart.addItem(&quot;1x Pour-Over Filter Pack\n&quot;);
+        checkpoint.saveSnapshot(cart.createSnapshot());
+
+        cart.addItem(&quot;40x Clearance Travel Mugs\n&quot;);
+        checkpoint.saveSnapshot(cart.createSnapshot());
+
+        cart.restoreSnapshot(checkpoint.getSnapshot(0));
+
+        System.out.println(cart.getManifest());
+
+    }
 }
 </code></pre>
 <ul>
-<li>Holds a <strong>list of mementos</strong> — this is the undo history / version list.</li>
-<li><code>addMemento(...)</code> pushes a new snapshot; <code>getMemento(index)</code> retrieves one to restore later.</li>
-<li><strong>What it deliberately does <em>not</em> do:</strong> it never calls anything that interprets or changes the snapshot's contents. It stores and returns <code>DocumentMemento</code> objects whole. The caretaker is a custodian, not an editor — it moves snapshots around without ever knowing what's in them.</li>
-</ul>
-<h3 id="mementodesignpattern-the-demo"><code>MementoDesignPattern</code> — the demo</h3>
-<pre><code class="language-java">Document document = new Document(&quot;Initial content\n&quot;);
-History history = new History();
-
-document.write(&quot;Additional content\n&quot;);
-history.addMemento(document.createMemento());     // snapshot #0
-
-document.write(&quot;More content\n&quot;);
-history.addMemento(document.createMemento());     // snapshot #1
-
-document.restoreFromMemento(history.getMemento(0)); // roll back to snapshot #0
-
-System.out.println(document.getContent());
-</code></pre>
-<ul>
-<li>Start with <code>"Initial content\n"</code>.</li>
-<li>Write more, then <strong>save</strong> snapshot #0 (<code>Initial + Additional</code>).</li>
-<li>Write more, then <strong>save</strong> snapshot #1 (<code>Initial + Additional + More</code>).</li>
-<li><strong>Restore</strong> snapshot #0 — the document rolls back, discarding "More content".</li>
-</ul>
-<p><strong>Console output:</strong></p>
-<pre><code>Memento Design Pattern
-Initial content
-Additional content
-</code></pre>
-<p>The "More content" line is gone because we rolled the document back to the state captured <em>before</em> it was written.</p>
-<hr />
-<h2 id="why-the-design-decisions">Why the design decisions</h2>
-<h3 id="why-not-just-let-callers-save-and-set-content-directly">Why not just let callers save and set <code>content</code> directly?</h3>
-<p>Because that breaks encapsulation. If undo were done by reading and writing a public <code>content</code> field from outside, then every caller would depend on the document's internal representation — change <code>content</code> from a <code>String</code> to a rope/gap-buffer and all that code breaks. Memento keeps the save/restore <em>mechanism</em> while keeping the <em>state</em> private: the outside world holds a <code>DocumentMemento</code> it can't meaningfully open, and only the <code>Document</code> knows how to fill and read it.</p>
-<h3 id="why-three-separate-roles-instead-of-one-class-doing-everything">Why three separate roles instead of one class doing everything?</h3>
-<p>Separation of concerns, and it's the whole structure of the pattern:<br />
-- The <strong>originator</strong> owns <em>what</em> state to save and <em>how</em> to restore — the only class that understands the content.<br />
-- The <strong>caretaker</strong> owns <em>when</em> to save and <em>which</em> snapshot to restore — the undo policy — without needing to understand the content at all.<br />
-- The <strong>memento</strong> is the neutral courier between them.</p>
-<p>This means you can change the undo policy (single undo, multi-level, redo, branching history) entirely inside the caretaker without touching the document, and change the document's internals without touching the caretaker.</p>
-<h3 id="why-does-the-caretaker-treat-the-memento-as-opaque">Why does the caretaker treat the memento as opaque?</h3>
-<p>So the snapshot can't be corrupted while it's in storage. If the caretaker could reach into a memento and change its content, a "saved" state could silently drift, and undo would restore something that was never actually the document's state. Keeping the memento opaque to the caretaker guarantees a snapshot is exactly what the originator put in it. (In an ideal Java implementation this is enforced — see the note below on the "wide vs. narrow interface.")</p>
-<h3 id="why-does-immutability-matter-here">Why does immutability matter here?</h3>
-<p>The memento must be a <strong>frozen</strong> copy of the state at save time. <code>String</code> is immutable, so storing the reference is enough — nothing can change it afterward. But if <code>Document</code>'s state were a <code>StringBuilder</code>, a <code>List</code>, or any mutable object, then <code>createMemento()</code> storing the <em>reference</em> would be a bug: later mutations to the live object would also mutate the "snapshot," so undo would restore the <em>current</em> state, not the saved one. The fix in that case is a <strong>defensive copy</strong> inside <code>createMemento()</code> (e.g. <code>new StringBuilder(content)</code>, <code>new ArrayList&lt;&gt;(list)</code>). Immutability is what makes the current code safe without a copy.</p>
-<h3 id="why-does-the-originator-build-and-read-the-memento-not-the-caretaker">Why does the originator build <em>and</em> read the memento (not the caretaker)?</h3>
-<p>Because only the originator understands the state. Letting the originator create the memento means it controls exactly what is captured; letting it do the restore means it controls how the state is put back. The caretaker stays blissfully ignorant, which is exactly what keeps the document's internals encapsulated.</p>
-<hr />
-<h2 id="execution-flow-the-demo">Execution flow (the demo)</h2>
-<pre><code>main
- │
- ├── new Document(&quot;Initial content\n&quot;)          content = &quot;Initial content\n&quot;
- ├── new History()                               mementos = []
- │
- ├── document.write(&quot;Additional content\n&quot;)     content = &quot;Initial\nAdditional\n&quot;
- ├── history.addMemento(document.createMemento())
- │        └── DocumentMemento(&quot;Initial\nAdditional\n&quot;)   mementos = [ #0 ]
- │
- ├── document.write(&quot;More content\n&quot;)           content = &quot;Initial\nAdditional\nMore\n&quot;
- ├── history.addMemento(document.createMemento())
- │        └── DocumentMemento(&quot;Initial\nAdditional\nMore\n&quot;)  mementos = [ #0, #1 ]
- │
- ├── document.restoreFromMemento(history.getMemento(0))
- │        └── content = #0.getSavedContent() = &quot;Initial\nAdditional\n&quot;   ← rolled back
- │
- └── println(document.getContent())
-          → &quot;Initial content\nAdditional content\n&quot;   (the &quot;More content&quot; line is undone)
-</code></pre>
-<p>Notice snapshot <strong>#1</strong> is still sitting in <code>history</code> — so you could redo/re-restore to it later with <code>getMemento(1)</code>. The history keeps every saved version.</p>
-<hr />
-<h2 id="notes-possible-improvements-not-changed-in-the-code">Notes / possible improvements (not changed in the code)</h2>
-<ul>
-<li><strong>Encapsulation could be tighter (the "wide vs. narrow interface").</strong> Here <code>DocumentMemento.getSavedContent()</code> is <code>public</code>, so the caretaker <em>could</em> read the saved content even though it doesn't. The textbook Java technique is to make the memento a <strong>nested class</strong> of the originator (or expose only a marker/narrow interface to the caretaker) so that <strong>only</strong> the originator can read the state, while the caretaker sees an opaque token. As written, the caretaker simply <em>chooses</em> not to look — the discipline is by convention, not enforced.</li>
-<li><strong>Mutable state would need a defensive copy</strong> in <code>createMemento()</code>, as explained above. Safe here only because <code>String</code> is immutable.</li>
-<li><strong>Memory cost.</strong> Each memento holds a full copy of the state; a long history of large snapshots costs memory. Real editors mitigate this with diffs/incremental mementos or a bounded history.</li>
-<li><strong>Plain <code>main</code>, no Spring</strong> — the pattern is pure OO structure and needs no container.</li>
+<li><code>package com.design.patterns.memento;</code> — the parent package, one level above both <code>originator</code> and <code>caretaker</code>. The demo is deliberately outside both — it is a third party that plays client, wiring the originator and caretaker together without belonging to either.</li>
+<li><code>import com.design.patterns.memento.caretaker.CartCheckpoint;</code> / <code>import com.design.patterns.memento.originator.ShoppingCart;</code> — brings the two public collaborator types into scope by simple name. Neither import grants access to <code>CartSnapshot</code>'s internals; the demo also cannot call <code>getSavedManifest()</code> directly, and doesn't need to.</li>
+<li><code>public class ShoppingCartRollbackDemo {</code> — <code>public</code> and its name matches the filename, as Java requires for a top-level public class. This is the module's entry point.</li>
+<li><code>public static void main(String[] args) {</code> — the standard JVM entry point: <code>public</code> so the launcher can call it, <code>static</code> so no instance is needed, <code>void</code> because nothing is returned, <code>String[] args</code> for (unused) command-line arguments.</li>
+<li><code>System.out.println("Shopping Cart Bulk-Update Rollback");</code> — prints a banner line identifying the demo.</li>
+<li><code>ShoppingCart cart = new ShoppingCart("2x Espresso Beans 1kg\n");</code> — creates the originator, seeding its manifest to <code>"2x Espresso Beans 1kg\n"</code>.</li>
+<li><code>CartCheckpoint checkpoint = new CartCheckpoint();</code> — creates the caretaker, starting with an empty checkpoint list.</li>
+<li><code>cart.addItem("1x Pour-Over Filter Pack\n");</code> — mutates the originator's state; <code>manifest</code> is now <code>"2x Espresso Beans 1kg\n1x Pour-Over Filter Pack\n"</code>.</li>
+<li><code>checkpoint.saveSnapshot(cart.createSnapshot());</code> — <code>cart.createSnapshot()</code> runs first, packaging the <em>current</em> manifest into a new <code>CartSnapshot</code> (constructed via the package-private constructor, legal because <code>createSnapshot()</code> executes inside <code>ShoppingCart</code>, which is in the memento's package). The resulting snapshot is then handed to <code>checkpoint.saveSnapshot(...)</code>, which appends it as checkpoint <strong>#0</strong> — taken right before the risky bulk-add below.</li>
+<li><code>cart.addItem("40x Clearance Travel Mugs\n");</code> — the risky bulk-add: mutates the state again; <code>manifest</code> is now <code>"2x Espresso Beans 1kg\n1x Pour-Over Filter Pack\n40x Clearance Travel Mugs\n"</code>.</li>
+<li><code>checkpoint.saveSnapshot(cart.createSnapshot());</code> — saves a second checkpoint, <strong>#1</strong>, capturing the state including the bulk-added mugs.</li>
+<li><code>cart.restoreSnapshot(checkpoint.getSnapshot(0));</code> — <code>checkpoint.getSnapshot(0)</code> returns checkpoint #0 verbatim, without inspecting it. That reference is passed into <code>cart.restoreSnapshot(...)</code>, which (from inside the <code>originator</code> package) calls the snapshot's package-private <code>getSavedManifest()</code> and overwrites <code>cart</code>'s <code>manifest</code> with it — rolling the cart back to the state right after the filter pack was added, discarding the accidental 40 clearance mugs.</li>
+<li><code>System.out.println(cart.getManifest());</code> — prints the now-restored manifest.</li>
+<li>Closing braces end <code>main</code> and the class.</li>
 </ul>
 <hr />
-<h2 id="relationship-to-the-other-behavioral-patterns">Relationship to the other Behavioral patterns</h2>
+<h2>Why these design decisions</h2>
+<h3>Why not just let callers read/write <code>manifest</code> directly for rollback?</h3>
+<p>Because that would tie every caller to <code>ShoppingCart</code>'s internal representation. If rollback meant "save the <code>String</code> externally and set it back later," changing <code>manifest</code> from a <code>String</code> to a structured line-item list would break every caller that ever grabbed the raw state. Memento keeps the save/restore <em>mechanism</em> available to the outside world while keeping the <em>state</em> itself private: outsiders hold a <code>CartSnapshot</code> — a token — and only <code>ShoppingCart</code> knows how to fill or read one.</p>
+<h3>Why three separate roles instead of one class doing everything?</h3>
+<p>Separation of concerns, and it <em>is</em> the structure of the pattern:
+- The <strong>originator</strong> (<code>ShoppingCart</code>) owns <em>what</em> state to save and <em>how</em> to restore it — the only class that understands the manifest's meaning.
+- The <strong>caretaker</strong> (<code>CartCheckpoint</code>) owns <em>when</em> to save and <em>which</em> snapshot to restore — the rollback policy — without needing to understand the manifest at all.
+- The <strong>memento</strong> (<code>CartSnapshot</code>) is the neutral courier between them.</p>
+<p>This lets the rollback policy (single-level, multi-level, named checkpoints, branching history) change entirely inside <code>CartCheckpoint</code> without touching <code>ShoppingCart</code>, and lets <code>ShoppingCart</code>'s internals change without touching <code>CartCheckpoint</code>.</p>
+<h3>The encapsulation pitfall this module fixes: package-private accessors + same-package placement</h3>
+<p>An earlier version of this module had the memento class living in its own separate package, with a <strong>public</strong> constructor and a <strong>public</strong> state-reading getter. That compiles and runs identically, but it is a real encapsulation bug: <em>any</em> class anywhere — including the caretaker, or code that has never heard of the originator — could call the getter and read the cart's saved contents directly, or even construct arbitrary memento instances itself. The caretaker was <em>choosing</em> not to look, by convention only; nothing stopped it, or any other class, from looking.</p>
+<p>The fix applied here:
+1. <strong><code>CartSnapshot</code> lives in <code>com.design.patterns.memento.originator</code></strong> — the same package as <code>ShoppingCart</code>.
+2. <strong><code>CartSnapshot</code>'s constructor and <code>getSavedManifest()</code> carry no <code>public</code> modifier</strong>, leaving them package-private (default access).</p>
+<p>Java's default access level means "visible only within the same package." Because <code>ShoppingCart</code> shares a package with <code>CartSnapshot</code>, it can construct snapshots and read their saved manifest — nothing about the originator's own behavior is compromised. But <code>CartCheckpoint</code>, sitting in <code>com.design.patterns.memento.caretaker</code>, is structurally locked out: <code>snapshot.getSavedManifest()</code> written anywhere in the <code>caretaker</code> package (or any other package) is a <strong>compile error</strong>, not a style violation. The class itself (<code>CartSnapshot</code>) remains <code>public</code> only because <code>CartCheckpoint</code> legitimately needs to <em>name the type</em> to hold and hand back references — it never needs to open one, and now it provably cannot.</p>
+<p>This was verified directly: a throwaway class in a third package (<code>com.evil.Snoop</code>) that called <code>snapshot.getSavedManifest()</code> on a snapshot obtained from <code>ShoppingCart.createSnapshot()</code> failed to compile with <code>error: getSavedManifest() is not public in CartSnapshot; cannot be accessed from outside package</code> — proving the caretaker (and everyone else outside <code>originator</code>) truly cannot inspect a snapshot's contents.</p>
+<h3>Why does immutability matter here?</h3>
+<p>The memento must be a <strong>frozen</strong> copy of the state at save time. <code>String</code> is immutable in Java, so storing the reference in <code>CartSnapshot.manifest</code> is enough — nothing can change it after the fact, including further calls to <code>cart.addItem(...)</code>. If <code>ShoppingCart</code>'s state were instead a mutable type (<code>StringBuilder</code>, <code>List</code>, etc.), <code>createSnapshot()</code> storing the live reference would be a bug: later mutations to the originator's object would also silently mutate the "frozen" snapshot. The correct fix in that case would be a <strong>defensive copy</strong> inside <code>createSnapshot()</code> (e.g., <code>new StringBuilder(manifest)</code>). This module is safe without one only because <code>String</code> is immutable.</p>
+<h3>Why does the originator build <em>and</em> read the memento, never the caretaker?</h3>
+<p>Because only the originator understands what its own state means. Letting <code>ShoppingCart</code> create the snapshot (<code>createSnapshot()</code>) means it controls exactly what gets captured; letting it perform the restore (<code>restoreSnapshot(...)</code>) means it controls exactly how state is put back — completely, not partially. <code>CartCheckpoint</code> stays deliberately ignorant of both operations, which is what keeps <code>ShoppingCart</code>'s internals encapsulated end to end.</p>
+<hr />
+<h2>Execution flow trace (what happens when <code>main()</code> runs)</h2>
+<pre><code>ShoppingCartRollbackDemo.main
+ │
+ ├── println(&quot;Shopping Cart Bulk-Update Rollback&quot;)
+ │
+ ├── new ShoppingCart(&quot;2x Espresso Beans 1kg\n&quot;)   manifest = &quot;2x Espresso Beans 1kg\n&quot;
+ ├── new CartCheckpoint()                           snapshots = []
+ │
+ ├── cart.addItem(&quot;1x Pour-Over Filter Pack\n&quot;)    manifest = &quot;2x Espresso Beans 1kg\n1x Pour-Over Filter Pack\n&quot;
+ ├── cart.createSnapshot()
+ │        └── new CartSnapshot(manifest)             (package-private ctor, called from within `originator`)
+ │        → snapshot #0 { manifest = &quot;2x Espresso Beans 1kg\n1x Pour-Over Filter Pack\n&quot; }
+ ├── checkpoint.saveSnapshot(#0)                     snapshots = [ #0 ]
+ │
+ ├── cart.addItem(&quot;40x Clearance Travel Mugs\n&quot;)    manifest = &quot;2x Espresso Beans 1kg\n1x Pour-Over Filter Pack\n40x Clearance Travel Mugs\n&quot;
+ ├── cart.createSnapshot()
+ │        └── new CartSnapshot(manifest)
+ │        → snapshot #1 { manifest = &quot;2x Espresso Beans 1kg\n1x Pour-Over Filter Pack\n40x Clearance Travel Mugs\n&quot; }
+ ├── checkpoint.saveSnapshot(#1)                     snapshots = [ #0, #1 ]
+ │
+ ├── checkpoint.getSnapshot(0)                       returns #0, unopened, unread by CartCheckpoint
+ ├── cart.restoreSnapshot(#0)
+ │        └── manifest = #0.getSavedManifest()        (package-private getter, called from within `originator`)
+ │        manifest = &quot;2x Espresso Beans 1kg\n1x Pour-Over Filter Pack\n&quot;   ← rolled back, the mugs are discarded
+ │
+ └── println(cart.getManifest())
+          → &quot;2x Espresso Beans 1kg\n1x Pour-Over Filter Pack\n&quot;
+</code></pre>
+<p>Snapshot <strong>#1</strong> is still sitting in <code>checkpoint.snapshots</code> — it was never removed, so a later <code>checkpoint.getSnapshot(1)</code> could still restore it. <code>CartCheckpoint</code> never inspected the contents of either snapshot at any point in this trace.</p>
+<hr />
+<h2>Expected output</h2>
+<p>Captured from a real run (<code>JAVA_HOME</code> pointed at JDK 11):</p>
+<pre><code>Shopping Cart Bulk-Update Rollback
+2x Espresso Beans 1kg
+1x Pour-Over Filter Pack
+</code></pre>
+<p>The "40x Clearance Travel Mugs" line does not appear — the cart was rolled back to snapshot #0, captured <em>before</em> that risky bulk-add ran.</p>
+<hr />
+<h2>How to run</h2>
+<p>Spring Boot parent <code>2.7.7</code>, <code>java.version</code> <code>1.8</code>. Build and run from <strong>inside this module's directory</strong> (not the parent reactor), using JDK 11:</p>
+<pre><code class="language-bash">JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean compile
+
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 java -cp target/classes com.design.patterns.memento.ShoppingCartRollbackDemo
+</code></pre>
+<p>(Drop <code>-o</code> if offline dependency resolution fails and network access is available.)</p>
+<hr />
+<h2>Relationship to the other Behavioral patterns</h2>
 <ul>
-<li><strong>Memento (this module)</strong> — externalize and later restore an object's state for undo, keeping the state encapsulated.</li>
+<li><strong>Memento (this module)</strong> — externalizes and later restores an object's state for rollback, keeping the state encapsulated to the originator.</li>
 <li><strong>Command</strong> — often paired with Memento: a command executes an action and stores a memento so it can <code>undo()</code> back to the prior state.</li>
-<li><strong>Prototype</strong> (creational) — also copies an object, but to produce a new usable instance, not to stash-and-restore state.</li>
+<li><strong>Prototype</strong> (creational) — also copies an object, but to produce a new <em>usable</em> instance, not to stash-and-restore one object's own state.</li>
 <li><strong>State</strong> — represents an object's current mode as an object; Memento snapshots state to <em>rewind</em> it rather than to switch behavior.</li>
 </ul>
-<p>Reach for Memento when you need <strong>undo/rollback, checkpoints, or history</strong> and you want to snapshot an object's state without breaking its encapsulation.</p>
-</body>
-</html>
+<p>Reach for Memento when you need <strong>rollback/undo, checkpoints, or history</strong>, and you want to snapshot an object's state without letting any other class — caretaker included — read or write that state directly.</p></body></html>

@@ -1,17 +1,17 @@
 package com.design.patterns.proxy;
 
-import com.design.patterns.proxy.subject.Image;
-import com.design.patterns.proxy.subject.proxy.ProxyImage;
+import com.design.patterns.proxy.subject.IYieldPredictionModel;
+import com.design.patterns.proxy.subject.proxy.ProxyYieldPredictionModel;
 
 public class ProxyDesignPattern {
 
 	public static void main(String[] args) {
 		System.out.println("Proxy Design Pattern");
 
-		Image image = new ProxyImage("holiday-photo.png");
+		IYieldPredictionModel model = new ProxyYieldPredictionModel("corn-yield-forecaster-v3");
 
-		image.display();
+		model.predict();
 
-		image.display();
+		model.predict();
 	}
 }

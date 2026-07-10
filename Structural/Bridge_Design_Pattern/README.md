@@ -9,14 +9,15 @@
 1. [Intent](#1-intent)
 2. [The Problem It Solves — Class Explosion](#2-the-problem-it-solves--class-explosion)
 3. [When to Use](#3-when-to-use)
-4. [Structure — ASCII UML](#4-structure--ascii-uml)
+4. [Structure — ASCII UML & The Players](#4-structure--ascii-uml--the-players)
 5. [Package Structure Explained](#5-package-structure-explained)
-6. [Line-by-Line Explanation of Every File](#6-line-by-line-explanation-of-every-file)
-7. [Execution Flow](#7-execution-flow)
-8. [Real-World Use Cases](#8-real-world-use-cases)
-9. [Bridge vs Adapter](#9-bridge-vs-adapter)
-10. [Key Design Decisions](#10-key-design-decisions)
-11. [Output](#11-output)
+6. [Code Walkthrough — Every File, Every Line](#6-code-walkthrough--every-file-every-line)
+7. [Why These Design Decisions](#7-why-these-design-decisions)
+8. [Execution Flow Trace](#8-execution-flow-trace)
+9. [Real-World Use Cases](#9-real-world-use-cases)
+10. [Bridge vs Adapter](#10-bridge-vs-adapter)
+11. [Expected Output](#11-expected-output)
+12. [How to Run](#12-how-to-run)
 
 ---
 
@@ -64,7 +65,7 @@ Total classes = N shapes + M colors
 
 At 10 shapes and 10 colors: **20 classes**. At 20 shapes and 20 colors: **40 classes**. The codebase grows linearly. Adding a new color is one file. Adding a new shape is one file. Neither touches the other.
 
-The mechanism: instead of `RedTriangle extends Triangle`, you write `Triangle` with a field of type `Color`. The triangle delegates color-related behavior to whichever `Color` instance it holds at runtime. This is the bridge.
+The mechanism: instead of `RedTriangle extends Triangle`, you write `Triangle` with a field of type `IColor`. The triangle delegates color-related behavior to whichever `IColor` instance it holds at runtime. This is the bridge. This module demonstrates exactly that mechanism with two shapes (`Triangle`, `Circle`) and two colors (`Red`, `Blue`) — four combinations produced from four classes, not four dedicated classes.
 
 ---
 
@@ -76,49 +77,51 @@ Use the Bridge pattern when:
 
 2. **Both the abstraction and its implementation should be extensible through subclassing, independently.** If you have two separate reasons a class might grow (e.g., more shapes vs. more colors), those two reasons belong in two separate hierarchies, not one tangled one.
 
-3. **Changes to the implementation should not impact client code.** Clients program to the abstraction (`Shape`). The `Color` interface can change its internals, gain new implementations, or be swapped entirely — clients never recompile or change.
+3. **Changes to the implementation should not impact client code.** Clients program to the abstraction (`AbstractShape`). The `IColor` interface can change its internals, gain new implementations, or be swapped entirely — clients never recompile or change.
 
 4. **You have a class explosion caused by multiple dimensions of variation.** Whenever you find yourself naming classes `XYZ` where X varies along one axis and Z varies along another (e.g., `MySQLUserRepo`, `PostgresUserRepo`, `MySQLOrderRepo`, `PostgresOrderRepo`), Bridge is the remedy.
 
-5. **You need to share an implementation among multiple objects and this fact should be hidden from the client.** A single `Color` instance can be shared by many shapes. The client uses `Shape`, never knowing whether the color object is shared or exclusive.
+5. **You need to share an implementation among multiple objects and this fact should be hidden from the client.** A single `IColor` instance can be shared by many shapes. The client uses `AbstractShape`, never knowing whether the color object is shared or exclusive.
 
 6. **You are working across platform boundaries.** Bridge is especially natural when the abstraction lives in portable, platform-independent code (your business logic) and the implementation lives in platform-specific code (OS calls, vendor SDKs, hardware drivers).
 
 ---
 
-## 4. Structure — ASCII UML
+## 4. Structure — ASCII UML & The Players
 
 ```
- ┌─────────────────────────────┐        ┌──────────────────────────────┐
- │        Shape (Abstraction)  │        │     Color (Implementor)      │
- │─────────────────────────────│        │──────────────────────────────│
- │ # color : Color             │◆──────▶│ + fill() : String            │
- │─────────────────────────────│        └──────────────────────────────┘
- │ + draw() : String (abstract)│                 ▲              ▲
- └─────────────────────────────┘                 │              │
-              ▲                           ┌──────┴───┐   ┌──────┴───┐
-              │                           │   Red    │   │   Blue   │
-   ┌──────────┴──────────┐                │──────────│   │──────────│
-   │  Triangle           │                │+ fill()  │   │+ fill()  │
-   │  (RefinedAbstraction│                └──────────┘   └──────────┘
-   │──────────────────── │
-   │+ draw() : String    │
-   └─────────────────────┘
+ ┌──────────────────────────────┐        ┌──────────────────────┐
+ │ AbstractShape (Abstraction)  │        │ IColor (Implementor) │
+ │──────────────────────────────│        │──────────────────────│
+ │ # color : IColor             │◆──────▶│ + fill() : String    │
+ │──────────────────────────────│        └──────────────────────┘
+ │ + draw() : String (abstract) │                  ▲             ▲
+ └──────────────────────────────┘                  │             │
+               ▲                           ┌──────┴───┐  ┌──────┴───┐
+        ┌──────┴──────┐                    │   Red    │  │   Blue   │
+        │             │                    │──────────│  │──────────│
+  ┌─────┴─────┐ ┌─────┴─────┐              │+ fill()  │  │+ fill()  │
+  │ Triangle  │ │  Circle   │              └──────────┘  └──────────┘
+  │(Refined-  │ │(Refined-  │
+  │Abstraction│ │Abstraction│
+  │───────────│ │───────────│
+  │+ draw()   │ │+ draw()   │
+  └───────────┘ └───────────┘
 
     ◆ = composition ("has-a")   ▲ = inheritance ("is-a")
     The ◆ arrow is the bridge.
 ```
 
-**Roles in this diagram:**
+**The players:**
 
 | Role | Class in this module | Responsibility |
 |---|---|---|
-| Abstraction | `Shape` | Defines the high-level interface; holds the implementor reference |
-| RefinedAbstraction | `Triangle` | Extends the abstraction; adds specific shape logic |
-| Implementor | `Color` | Defines the low-level interface the abstraction delegates to |
-| ConcreteImplementor | `Red`, `Blue` | Provides a concrete rendering of the implementor interface |
+| Abstraction | `AbstractShape` | Defines the high-level interface (`draw()`); holds the `IColor` implementor reference |
+| RefinedAbstraction | `Triangle`, `Circle` | Extend the abstraction; each supplies its own `draw()` logic while delegating color to the held `IColor` |
+| Implementor | `IColor` | Defines the low-level interface (`fill()`) the abstraction delegates to |
+| ConcreteImplementor | `Red`, `Blue` | Provide a concrete rendering of the implementor interface |
 
-The critical structural point: `Shape` *contains* `Color` through composition (the `◆` arrow). This is the bridge. `Triangle` does not extend `Red`; it holds a `Color` and calls `color.fill()` when drawing. The two hierarchies — the shape hierarchy on the left and the color hierarchy on the right — are completely decoupled from each other.
+The critical structural point: `AbstractShape` *contains* `IColor` through composition (the `◆` arrow). This is the bridge. `Triangle` does not extend `Red`; it holds an `IColor` and calls `color.fill()` when drawing. The shape hierarchy (`AbstractShape` → `Triangle`/`Circle`) and the color hierarchy (`IColor` → `Red`/`Blue`) are two genuinely independent hierarchies connected only through that one field — this is real two-hierarchy Bridge, not a single-hierarchy Strategy dressed up as one.
 
 ---
 
@@ -130,86 +133,87 @@ com.design.patterns.bridge
 ├── BridgeDesignPattern.java          (driver / main class)
 │
 └── contract/
-    ├── Color.java                    (Implementor interface)
-    ├── Shape.java                    (Abstraction abstract class)
+    ├── IColor.java            (Implementor interface)
+    ├── AbstractShape.java     (Abstraction abstract class)
     │
-    └── concrets/
+    └── concrete/
         ├── Red.java                  (ConcreteImplementor)
         ├── Blue.java                 (ConcreteImplementor)
-        └── Triangle.java             (RefinedAbstraction)
+        ├── Triangle.java             (RefinedAbstraction)
+        └── Circle.java               (RefinedAbstraction)
 ```
 
 **Why `contract` holds both interfaces?**
 
-The `contract` package groups the *stable, defining contracts* of the pattern — the parts that change least. `Color` is the implementor interface; `Shape` is the abstraction. Both define APIs (contracts) that the rest of the codebase depends on. Placing them together signals: "these are the anchors; extensions live elsewhere." Client code that wants to program against abstractions only needs to import from `contract`.
+The `contract` package groups the *stable, defining contracts* of the pattern — the parts that change least. `IColor` is the implementor interface; `AbstractShape` is the abstraction. Both define APIs (contracts) that the rest of the codebase depends on. Placing them together signals: "these are the anchors; extensions live elsewhere." Client code that wants to program against abstractions only needs to import from `contract`.
 
-**Why `concrets` is a sub-package of `contract`?**
+**Why `concrete` is a sub-package of `contract`?**
 
-The `concrets` sub-package signals: "these are concrete realizations of the contracts defined one level up." Keeping them inside `contract` preserves locality — you can find the interface and all its implementations by navigating a single package tree — while still separating the stable API (`contract`) from the volatile implementations (`contract.concrets`). The sub-package structure also mirrors the dependency direction: `concrets` depends on `contract`, never the reverse.
+The `concrete` sub-package signals: "these are concrete realizations of the contracts defined one level up." Keeping them inside `contract` preserves locality — you can find the interface and all its implementations by navigating a single package tree — while still separating the stable API (`contract`) from the volatile implementations (`contract.concrete`). The sub-package structure also mirrors the dependency direction: `concrete` depends on `contract`, never the reverse.
 
-**Why are both `Red`/`Blue` (color implementations) and `Triangle` (shape implementation) in the same `concrets` package?**
+**Why are both `Red`/`Blue` (color implementations) and `Triangle`/`Circle` (shape implementations) in the same `concrete` package?**
 
-In this pedagogical implementation, both dimensions are concrete extensions, so they share one `concrets` package. In a production codebase you would likely split them further: `contract.colors` and `contract.shapes`, each holding their respective implementations.
+In this pedagogical implementation, both dimensions are concrete extensions, so they share one `concrete` package. In a production codebase you would likely split them further: `contract.colors` and `contract.shapes`, each holding their respective implementations.
 
 ---
 
-## 6. Line-by-Line Explanation of Every File
+## 6. Code Walkthrough — Every File, Every Line
 
-### 6.1 `Color.java` — The Implementor Interface
+### 6.1 `IColor.java` — The Implementor Interface
 
 ```java
 package com.design.patterns.bridge.contract;
 ```
-Declares that this type belongs to the `contract` package — the stable API layer. All classes that depend on the `Color` contract import from here. The package path encodes the context: this is a bridge pattern contract inside the broader design-patterns project.
+Declares that this type belongs to the `contract` package — the stable API layer. All classes that depend on the `IColor` contract import from here.
 
 ```java
-public interface Color {
+public interface IColor {
 ```
-Declares `Color` as a Java interface, not a class. An interface enforces a contract without providing implementation, making it the correct choice for the implementor role. Any class that wants to be a color in this system must implement this interface. The name `Color` is intentional: it describes the *concept*, not any specific color.
+Declares `IColor` as a Java interface, not a class. An interface enforces a contract without providing implementation, making it the correct choice for the implementor role. Any class that wants to be a color in this system must implement this interface. The name `IColor` is intentional: it describes the *concept*, not any specific color.
 
 ```java
     String fill();
 ```
-The single method of the implementor interface. It takes no parameters and returns a `String` representing the color's name or value. The method is named `fill` because it conceptually "fills" a shape with a color. Returning a `String` (rather than printing directly or returning `void`) makes the method pure and testable — it produces output that callers can use, log, or assert against. Every concrete color class must provide an implementation of this method.
+The single method of the implementor interface. It takes no parameters and returns a `String` representing the color's name. The method is named `fill` because it conceptually "fills" a shape with a color. Returning a `String` (rather than printing directly or returning `void`) makes the method pure and testable — it produces output that callers can use, log, or assert against.
 
 ```java
 }
 ```
-Closes the interface declaration. The interface is intentionally minimal — one method, one responsibility. This follows the Interface Segregation Principle: clients depend only on what they actually use.
+Closes the interface declaration. It is intentionally minimal — one method, one responsibility, following the Interface Segregation Principle.
 
 ---
 
-### 6.2 `Shape.java` — The Abstraction
+### 6.2 `AbstractShape.java` — The Abstraction
 
 ```java
 package com.design.patterns.bridge.contract;
 ```
-Same package as `Color`. Both contracts live together in `com.design.patterns.bridge.contract`. This is the only import `Shape` needs from within its own layer.
+Same package as `IColor`. Both contracts live together in `com.design.patterns.bridge.contract`.
 
 ```java
-public abstract class Shape {
+public abstract class AbstractShape {
 ```
-`Shape` is an abstract class, not an interface. This choice is deliberate and important (discussed further in Section 10). Abstract class means: `Shape` is partially implemented — it holds the `color` field and the constructor — but leaves `draw()` for subclasses to complete. The `abstract` keyword prevents instantiation of `Shape` directly; you must subclass it and provide `draw()`.
+`AbstractShape` is an abstract class, not an interface — a deliberate choice discussed in Section 7. It is partially implemented: it holds the `color` field and the constructor, but leaves `draw()` for subclasses to complete. The `abstract` keyword prevents instantiation of `AbstractShape` directly.
 
 ```java
-    protected final Color color;
+    protected final IColor color;
 ```
-This single field is the **bridge**. `Shape` does not extend `Color`; it *holds* a `Color`. The `protected` modifier allows subclasses (`Triangle`, and future shapes) to read `color` directly without needing a getter, which keeps the code tight. The `final` modifier ensures the color reference cannot be reassigned after construction — a shape's color identity is fixed at birth. `Color` is the interface type, not a concrete type: `Shape` knows only that it holds something that can `fill()`, not whether that something is `Red`, `Blue`, or any other color.
+This single field is the **bridge**. `AbstractShape` does not extend `IColor`; it *holds* an `IColor`. `protected` allows subclasses (`Triangle`, `Circle`) to read `color` directly without needing a getter. `final` ensures the reference cannot be reassigned after construction — a shape's color identity is fixed at birth. The field type is the `IColor` interface, not a concrete type: `AbstractShape` knows only that it holds something that can `fill()`, not whether that something is `Red`, `Blue`, or any other color.
 
 ```java
-    protected Shape(Color color) {
+    protected AbstractShape(IColor color) {
 ```
-The constructor accepts a `Color` and stores it. It is `protected` so that only subclasses and classes in the same package can call it — external code cannot instantiate `Shape` directly (nor would they want to, since it is abstract). The parameter name `color` shadows the field name, which is resolved by `this.color = color` on the next line.
+The constructor accepts an `IColor` and stores it. It is `protected` so that only subclasses and classes in the same package can call it — external code cannot instantiate `AbstractShape` directly (nor would they want to, since it is abstract). The parameter name `color` shadows the field name, resolved by `this.color = color` on the next line.
 
 ```java
         this.color = color;
 ```
-Assigns the injected `Color` implementation to the field. This is **constructor injection** — the dependency (`Color`) is injected through the constructor rather than created inside the class. This makes `Shape` independent of any specific color; it works with any object that satisfies the `Color` contract, including mocks in tests.
+Assigns the injected `IColor` implementation to the field. This is **constructor injection** — the dependency (`IColor`) is injected through the constructor rather than created inside the class. This makes `AbstractShape` independent of any specific color implementation.
 
 ```java
     abstract public String draw();
 ```
-Declares the abstract method that all concrete shapes must implement. `String` return type (parallel to `Color.fill()`) keeps the method pure. Every shape has its own way of describing itself visually, but all shapes expose the same method signature — `draw()` — so client code can call `draw()` on any `Shape` without knowing its concrete type.
+Declares the abstract method that all concrete shapes must implement. The `String` return type (parallel to `IColor.fill()`) keeps the method pure. Every shape has its own way of describing itself, but all shapes expose the same signature — `draw()` — so client code can call it on any `AbstractShape` without knowing its concrete type.
 
 ```java
 }
@@ -221,132 +225,125 @@ Closes the abstract class.
 ### 6.3 `Red.java` — Concrete Implementor
 
 ```java
-package com.design.patterns.bridge.contract.concrets;
+package com.design.patterns.bridge.contract.concrete;
 ```
-Located in the `concrets` sub-package. This is a concrete class — an implementation — so it lives below the `contract` layer.
+Located in the `concrete` sub-package. This is a concrete class — an implementation — so it lives below the `contract` layer.
 
 ```java
-import com.design.patterns.bridge.contract.Color;
+import com.design.patterns.bridge.contract.IColor;
 ```
-Imports the `Color` interface that this class implements. The dependency direction is correct: `concrets` depends on `contract`, not the other way around.
+Imports the `IColor` interface that this class implements. The dependency direction is correct: `concrete` depends on `contract`, not the other way around.
 
 ```java
-public class Red implements Color {
+public class Red implements IColor {
 ```
-`Red` is a concrete class that provides one implementation of the `Color` contract. The `implements Color` declaration makes `Red` a valid substitution wherever a `Color` is expected — including the `Shape` constructor.
+`Red` is a concrete class that provides one implementation of the `IColor` contract. `implements IColor` makes `Red` a valid substitution wherever an `IColor` is expected — including the `AbstractShape` constructor.
 
 ```java
     @Override
-```
-Standard Java annotation asserting that the method below overrides or implements a method from a supertype. This causes a compile-time error if the method signature does not actually match any method in `Color`, which guards against typos or interface changes that break implementations silently.
-
-```java
     public String fill() {
-```
-The concrete implementation of the `fill()` method declared in `Color`. This is the body of the bridge's right-hand side for the red case.
-
-```java
-        return "RED";
-```
-Returns the string `"RED"` (uppercase). This is the simplest possible implementation — a plain string literal. In a real application, this might return an ANSI color code, an RGB hex value, or a localized color name.
-
-```java
+        return "Red";
     }
+```
+The concrete implementation of `fill()`. It returns the string `"Red"`. In a real application, this might return an ANSI color code, an RGB hex value, or a localized color name.
+
+```java
 }
 ```
-Closes the method and the class.
+Closes the class.
 
 ---
 
 ### 6.4 `Blue.java` — Concrete Implementor
 
 ```java
-package com.design.patterns.bridge.contract.concrets;
+package com.design.patterns.bridge.contract.concrete;
 ```
 Same package as `Red`. Both concrete colors live together.
 
 ```java
-import com.design.patterns.bridge.contract.Color;
+import com.design.patterns.bridge.contract.IColor;
 ```
-Same import as `Red`. Both implementors depend on the same `Color` interface.
+Same import as `Red`. Both implementors depend on the same `IColor` interface.
 
 ```java
-public class Blue implements Color {
-```
-A second concrete implementor. `Blue` and `Red` are siblings — both implement `Color`, both are interchangeable anywhere a `Color` is needed. Neither knows about the other. Neither knows about `Shape`.
+public class Blue implements IColor {
 
-```java
     @Override
     public String fill() {
         return "Blue";
-```
-Note the inconsistency with `Red`: `Red.fill()` returns `"RED"` (all caps) while `Blue.fill()` returns `"Blue"` (mixed case). This is a minor stylistic inconsistency in the implementation — in production code you would standardize the return value format. The pattern itself is unaffected.
-
-```java
     }
 }
 ```
-Closes the method and the class.
+A second concrete implementor, structurally identical to `Red` except for the returned string. `Blue` and `Red` are siblings — both implement `IColor`, both are interchangeable anywhere an `IColor` is needed, and both return their name with the same capitalization (`"Red"`, `"Blue"`) so `AbstractShape.draw()` output is consistent regardless of which color is plugged in. Neither knows about the other. Neither knows about `AbstractShape`.
 
 ---
 
 ### 6.5 `Triangle.java` — Refined Abstraction
 
 ```java
-package com.design.patterns.bridge.contract.concrets;
+package com.design.patterns.bridge.contract.concrete;
 ```
-Triangle is a concrete shape — a refined abstraction — so it lives in `concrets` alongside the concrete colors.
+Triangle is a concrete shape — a refined abstraction — so it lives in `concrete` alongside the concrete colors.
 
 ```java
-import com.design.patterns.bridge.contract.Color;
+import com.design.patterns.bridge.contract.IColor;
+import com.design.patterns.bridge.contract.AbstractShape;
 ```
-Triangle's constructor needs `Color` as a parameter type to pass to `super()`. This import brings in the `Color` interface.
+`Triangle`'s constructor needs `IColor` as a parameter type to pass to `super()`, and it needs `AbstractShape` because it extends it.
 
 ```java
-import com.design.patterns.bridge.contract.Shape;
+public class Triangle extends AbstractShape {
 ```
-Triangle extends `Shape`. This import brings in the abstract base class.
+`Triangle` is a concrete, instantiable class that extends the abstract `AbstractShape`. It is the "Refined Abstraction" in Bridge terminology: it extends the abstraction by providing a concrete `draw()` for triangles specifically.
 
 ```java
-public class Triangle extends Shape {
-```
-`Triangle` is a concrete, instantiable class that extends the abstract `Shape`. It is the "Refined Abstraction" in Bridge terminology: it extends the abstraction (`Shape`) by providing a concrete `draw()` implementation for triangles specifically.
-
-```java
-    public Triangle(Color color) {
-```
-Triangle's constructor accepts a `Color` argument. The constructor is `public` — external code like the driver class needs to instantiate `Triangle` directly. The parameter type is `Color` (the interface), not `Red` or `Blue`, so `Triangle` is decoupled from any specific color. You can construct `new Triangle(new Red())`, `new Triangle(new Blue())`, or `new Triangle(anyColorYouInvent)`.
-
-```java
+    public Triangle(IColor color) {
         super(color);
-```
-Delegates to `Shape`'s protected constructor, which stores the `Color` reference in the `protected final Color color` field. `Triangle` itself does not have a `color` field — it inherits the field from `Shape`. The `super(color)` call is mandatory: Java requires a call to the superclass constructor as the first statement in a subclass constructor, and `Shape` has no no-arg constructor, so this delegation is explicit and unavoidable.
-
-```java
     }
 ```
-Closes the constructor. Triangle is fully initialized after this — it holds a `color` (via the inherited field) and is ready to `draw()`.
+The constructor accepts an `IColor` argument and immediately delegates to `AbstractShape`'s protected constructor via `super(color)`, which stores the reference in the inherited `protected final IColor color` field. The constructor is `public` because external code (the driver) needs to instantiate `Triangle` directly. The parameter type is `IColor` (the interface), not `Red` or `Blue`, so `Triangle` is decoupled from any specific color — `new Triangle(new Red())`, `new Triangle(new Blue())`, or `new Triangle(anyColorYouInvent)` all work unchanged. `super(color)` is mandatory here: Java requires a call to the superclass constructor as the first statement in a subclass constructor, and `AbstractShape` has no no-arg constructor.
 
 ```java
     @Override
     public String draw() {
-```
-The concrete implementation of the abstract method declared in `Shape`. This is where Triangle defines its specific behavior. The `@Override` annotation confirms this satisfies the contract.
-
-```java
-        return "Triange shape with color : " + color.fill();
-```
-This line is the bridge **in action**. Triangle calls `color.fill()` — it delegates the color-related behavior to the `Color` implementor it was given at construction time. Triangle does not know if `color` is `Red`, `Blue`, or anything else. It just calls `fill()` and incorporates the result into its own output string. Note there is a typo in the source: `"Triange"` should be `"Triangle"`. The concatenation `"Triange shape with color : " + color.fill()` builds the complete result from triangle's own part and the color's part.
-
-```java
+        return "Triangle shape with color : " + color.fill();
     }
+```
+The concrete implementation of the abstract method declared in `AbstractShape`. This line is the bridge **in action**: `Triangle` calls `color.fill()` — it delegates the color-related behavior to whichever `IColor` implementor it was given at construction time, without knowing if it is `Red`, `Blue`, or anything else. The concatenation builds the complete result from Triangle's own part (`"Triangle shape with color : "`) and the color's part (`color.fill()`).
+
+```java
 }
 ```
-Closes the method and the class.
+Closes the class.
 
 ---
 
-### 6.6 `BridgeDesignPattern.java` — The Driver
+### 6.6 `Circle.java` — Refined Abstraction
+
+```java
+package com.design.patterns.bridge.contract.concrete;
+
+import com.design.patterns.bridge.contract.IColor;
+import com.design.patterns.bridge.contract.AbstractShape;
+
+public class Circle extends AbstractShape {
+
+    public Circle(IColor color) {
+        super(color);
+    }
+
+    @Override
+    public String draw() {
+        return "Circle shape with color : " + color.fill();
+    }
+}
+```
+`Circle` is the second RefinedAbstraction, structurally identical to `Triangle` in every respect except the literal shape name in the output string (`"Circle shape with color : "` instead of `"Triangle shape with color : "`) and its own class name. This is exactly the point of Bridge: adding a new shape costs one small class that repeats the same three-line pattern (constructor delegates to `super(color)`, `draw()` concatenates its own label with `color.fill()`) — it required zero changes to `AbstractShape`, `IColor`, `Red`, or `Blue`. Independently, `Circle` and `Triangle` can each be combined with `Red` or `Blue` without either shape or either color ever referencing the other's class.
+
+---
+
+### 6.7 `BridgeDesignPattern.java` — The Driver
 
 ```java
 package com.design.patterns.bridge;
@@ -354,19 +351,13 @@ package com.design.patterns.bridge;
 The driver lives in the root package of the module, one level above `contract`. It is the entry point, not a pattern participant.
 
 ```java
-import com.design.patterns.bridge.contract.Shape;
+import com.design.patterns.bridge.contract.AbstractShape;
+import com.design.patterns.bridge.contract.concrete.Blue;
+import com.design.patterns.bridge.contract.concrete.Circle;
+import com.design.patterns.bridge.contract.concrete.Red;
+import com.design.patterns.bridge.contract.concrete.Triangle;
 ```
-The driver imports the `Shape` abstraction — the left side of the bridge. The driver programs to the abstraction, not to the concrete `Triangle` class (though it must use `Triangle` in the `new` expression to instantiate).
-
-```java
-import com.design.patterns.bridge.contract.concrets.Red;
-```
-Imports the `Red` concrete implementor — one specific color. The driver knows about `Red` only at the point of object construction. Once constructed, the rest of the code works through `Color` and `Shape` interfaces.
-
-```java
-import com.design.patterns.bridge.contract.concrets.Triangle;
-```
-Imports the `Triangle` refined abstraction. Again, the driver knows about `Triangle` for instantiation, but after that treats it as a `Shape`.
+The driver imports the `AbstractShape` abstraction (the left side of the bridge) plus all four concrete leaf classes it needs to construct: the two RefinedAbstractions (`Triangle`, `Circle`) and the two ConcreteImplementors (`Red`, `Blue`). The driver is the one place in the module allowed to know about every concrete class — once objects are built, the rest of the code works through the `AbstractShape` and `IColor` interfaces only.
 
 ```java
 public class BridgeDesignPattern {
@@ -384,20 +375,17 @@ The standard JVM entry point. This is the only method in the class.
 Prints the pattern name as a header, confirming the program launched and identifying the output visually.
 
 ```java
-        Shape triangle = new Triangle(new Red());
+        AbstractShape[] shapes = { new Triangle(new Red()), new Triangle(new Blue()),
+                new Circle(new Red()), new Circle(new Blue()) };
 ```
-The key line of the demo. Three things happen here:
-
-- `new Red()` creates a concrete `Color` implementor — the right side of the bridge.
-- `new Triangle(new Red())` creates a concrete `Shape` (refined abstraction), injecting `Red` through the constructor — this is the bridge being assembled.
-- `Shape triangle` stores the result as the abstract type `Shape` — from this line forward, the driver calls `draw()` on `triangle` without knowing or caring that it is a `Triangle` holding a `Red`.
-
-The power of Bridge is visible in this single line: you could write `new Triangle(new Blue())` to get a blue triangle, or `new Circle(new Red())` when you add a `Circle` class, and nothing else changes.
+Builds an array of four `AbstractShape` references, one for every combination of the two RefinedAbstractions and the two ConcreteImplementors. Each element assembles a bridge on the spot: `new Red()` or `new Blue()` creates the implementor half, and wrapping it in `new Triangle(...)` or `new Circle(...)` creates the abstraction half around it. The array is declared as `AbstractShape[]`, not `Triangle[]` or `Object[]` — every element is stored and later used purely as an abstraction, even though the driver had to name the concrete types to construct them. This one array is the clearest demonstration in the module that the two hierarchies multiply combinatorially (2 shapes × 2 colors = 4 objects) while the source still only needed one class per shape and one class per color (2 + 2 = 4 classes).
 
 ```java
-        System.out.println(triangle.draw());
+        for (AbstractShape shape : shapes) {
+            System.out.println(shape.draw());
+        }
 ```
-Calls `draw()` on the `Shape` reference. Polymorphism dispatches to `Triangle.draw()`. The output is the return value of `Triangle.draw()`, which internally called `Red.fill()`. The driver never called `fill()` directly — it had no knowledge of `Color` at this point.
+Iterates the array using only the `AbstractShape` abstraction. Each call to `shape.draw()` is a polymorphic dispatch to whichever concrete `draw()` the runtime type provides (`Triangle.draw()` or `Circle.draw()`), which in turn calls `color.fill()` on whichever `IColor` that shape was constructed with (`Red.fill()` or `Blue.fill()`). The loop body never mentions `Triangle`, `Circle`, `Red`, or `Blue` by name — it is written entirely against `AbstractShape`, and would be unchanged if a fifth or sixth combination were appended to the array above.
 
 ```java
     }
@@ -407,9 +395,50 @@ Closes the method and the class.
 
 ---
 
-## 7. Execution Flow
+## 7. Why These Design Decisions
 
-Here is a step-by-step trace of exactly what happens from the moment the JVM calls `main()` to the moment a string is printed:
+### Why `protected final IColor color`?
+
+Three separate modifiers, each with a distinct purpose:
+
+- **`protected`**: The `color` field needs to be accessible in `Triangle.draw()` and `Circle.draw()` without a getter method. Since both are subclasses of `AbstractShape`, `protected` grants access. Making it `private` would force a getter, adding boilerplate. Making it `public` would expose the internal implementor reference to all client code, breaking encapsulation.
+
+- **`final`**: A shape's color is set at construction and should not change. `final` enforces this at compile time — no code inside `AbstractShape` or any subclass can reassign `color` after the constructor returns. This makes `AbstractShape` instances easier to reason about: once built, their color never changes.
+
+- **`IColor` interface type, not concrete**: `AbstractShape` holds a reference of type `IColor`, not `Red` or `Blue`. This is what makes the bridge work — `AbstractShape` is decoupled from all specific colors. Any `IColor` implementation can be passed at construction time, now or in the future, without modifying `AbstractShape`.
+
+### Why `abstract class AbstractShape` instead of `interface AbstractShape`?
+
+An interface cannot hold instance fields or provide constructor logic. The bridge requires `AbstractShape` to store an `IColor` reference in `protected final IColor color` and initialize it via `protected AbstractShape(IColor color)`. Neither is possible in an interface.
+
+An abstract class is the right tool when you need to:
+1. Define abstract methods that subclasses must implement (`draw()`).
+2. Provide concrete state shared by all subclasses (`color` field).
+3. Enforce an initialization protocol via a constructor (`this.color = color`).
+
+An interface would force each concrete shape (`Triangle`, `Circle`, and any future shape) to independently declare and initialize its own `color` field, duplicating the bridge setup in every one. The abstract class centralizes that boilerplate once.
+
+### Why `super(color)` in the `Triangle` and `Circle` constructors?
+
+`AbstractShape` declares no no-arg constructor. When you subclass a class that has no default constructor, Java requires that your subclass constructor explicitly call a superclass constructor as its first statement. `super(color)` invokes `AbstractShape(IColor color)`, which stores the `IColor` reference.
+
+Beyond the mechanical requirement, `super(color)` is correct by design: the bridge connection (`this.color = color`) belongs in the base abstraction (`AbstractShape`), not in each refined abstraction. Every shape needs a color stored the same way. Centralizing that in `AbstractShape`'s constructor and delegating to it via `super()` is the DRY (Don't Repeat Yourself) expression of the pattern — it is also exactly why adding `Circle` next to `Triangle` cost three lines instead of duplicating field declarations and null-checks.
+
+### Why does `String fill()` return a value instead of `void`?
+
+A `void fill()` would be forced to produce output as a side effect — either printing directly (`System.out.println`) or writing to some shared mutable state. Side-effecting implementors are:
+
+- **Harder to test**: You cannot assert on a return value; you must intercept stdout or check shared state.
+- **Less composable**: `Triangle.draw()` and `Circle.draw()` could not build a string that *includes* the color; they could only trigger the color to print separately, losing the ability to compose the output.
+- **Inflexible**: The caller (the shape) loses control over what happens with the color information — it cannot log it, return it to a higher caller, or format it differently.
+
+Returning `String` keeps `fill()` a **pure function**: given no input, it returns a predictable value with no side effects. Each shape's `draw()` composes the full output string (its own label plus `color.fill()`) and returns it, leaving the decision of what to do with that string to the caller. The driver (`BridgeDesignPattern`) is the only place that decides to print it.
+
+---
+
+## 8. Execution Flow Trace
+
+Here is a step-by-step trace of exactly what happens from the moment the JVM calls `main()` to the moment the program exits:
 
 ```
 1. JVM calls BridgeDesignPattern.main(String[])
@@ -417,43 +446,50 @@ Here is a step-by-step trace of exactly what happens from the moment the JVM cal
 2. System.out.println("Bridge Design Pattern")
    → Prints: "Bridge Design Pattern"
 
-3. new Red()
-   → JVM allocates a Red instance on the heap.
-   → Red has no fields; no constructor logic runs beyond Object().
-   → Returns a Red reference.
+3. AbstractShape[] shapes = { ... } — four bridges are assembled, left to right:
 
-4. new Triangle(new Red())
-   → JVM allocates a Triangle instance on the heap.
-   → Triangle(Color color) constructor is called with the Red instance.
-   → Inside Triangle(): super(color) is called.
-   → Inside Shape(Color color): this.color = color
-     → The `color` field of the Shape portion of Triangle is set to the Red instance.
-   → Triangle constructor returns.
-   → Returns a Triangle reference (stored as Shape triangle).
+   a) new Triangle(new Red())
+      → new Red()      : allocates a Red instance (no fields, no logic beyond Object()).
+      → new Triangle(IColor) is called with that Red instance.
+      → Inside Triangle(): super(color) → AbstractShape(IColor color): this.color = color.
+      → Returns a Triangle reference holding a Red.
 
-5. triangle.draw()
-   → Polymorphic dispatch: runtime type is Triangle, so Triangle.draw() is called.
-   → Inside Triangle.draw():
-       "Triange shape with color : " + color.fill()
-       → color.fill() is called on the Red instance.
-       → Inside Red.fill(): return "RED"
-       → Returns "RED" to Triangle.draw().
-       → Concatenation produces: "Triange shape with color : RED"
-   → Triangle.draw() returns "Triange shape with color : RED"
+   b) new Triangle(new Blue())   — same sequence, holding a Blue instead of a Red.
+   c) new Circle(new Red())      — same sequence, constructing a Circle instead of a Triangle.
+   d) new Circle(new Blue())     — same sequence, a Circle holding a Blue.
 
-6. System.out.println("Triange shape with color : RED")
-   → Prints: "Triange shape with color : RED"
+   → All four references are stored in the shapes array, typed as AbstractShape[].
 
-7. main() returns. JVM exits.
+4. for (AbstractShape shape : shapes) — the loop runs once per array element:
+
+   Iteration 1 — shape is the Triangle holding Red:
+     → shape.draw() dispatches polymorphically to Triangle.draw().
+     → Inside Triangle.draw(): color.fill() dispatches to Red.fill() → returns "Red".
+     → Concatenation produces: "Triangle shape with color : Red"
+     → System.out.println(...) prints it.
+
+   Iteration 2 — shape is the Triangle holding Blue:
+     → Triangle.draw() calls Blue.fill() → "Blue".
+     → Prints: "Triangle shape with color : Blue"
+
+   Iteration 3 — shape is the Circle holding Red:
+     → Circle.draw() calls Red.fill() → "Red".
+     → Prints: "Circle shape with color : Red"
+
+   Iteration 4 — shape is the Circle holding Blue:
+     → Circle.draw() calls Blue.fill() → "Blue".
+     → Prints: "Circle shape with color : Blue"
+
+5. main() returns. JVM exits.
 ```
 
-The bridge crossing happens at step 5: `Triangle.draw()` calls across to `Red.fill()`. `Triangle` and `Red` are in separate hierarchies, completely independent — they communicate only through the `Color` interface contract. You could replace `Red` with any `Color` implementation and step 5 would produce a different string without any change to steps 1–4 or step 6.
+The bridge crossing happens inside every call to `draw()`: `Triangle`/`Circle` call across to `Red`/`Blue` purely through the `IColor` interface. Neither shape hierarchy nor color hierarchy references the other's concrete class — they communicate only through `IColor.fill()`. You could add a `Green` implementor or a `Square` refined abstraction and every existing line above would behave identically for the combinations that already exist.
 
 ---
 
-## 8. Real-World Use Cases
+## 9. Real-World Use Cases
 
-### 8.1 GUI Frameworks — Rendering API vs. UI Controls
+### 9.1 GUI Frameworks — Rendering API vs. UI Controls
 
 GUI toolkits like Java's AWT/Swing or Qt face a classic Bridge scenario. There are two independent axes of variation:
 
@@ -464,15 +500,15 @@ Without Bridge: `WindowsButton`, `MacButton`, `LinuxButton`, `WindowsTextField`,
 
 With Bridge: `Button` holds a reference to a `Renderer` interface. `WindowsRenderer`, `MacRenderer`, `OpenGLRenderer` implement `Renderer`. Adding a new control type adds one class. Adding a new platform adds one renderer. The two hierarchies evolve independently.
 
-### 8.2 Database Drivers — JDBC Abstraction vs. Vendor Implementation
+### 9.2 Database Drivers — JDBC Abstraction vs. Vendor Implementation
 
 Java's JDBC is a textbook Bridge. Application code uses `java.sql.Connection`, `Statement`, `ResultSet` — these are the abstraction layer. MySQL Connector/J, PostgreSQL JDBC, Oracle Thin Driver — these are the implementations. Your application never touches MySQL-specific classes; it holds a `Connection`. Switching databases is swapping the `Driver` registration at startup; no application code changes.
 
-### 8.3 Logging Frameworks — Logger API vs. Appender
+### 9.3 Logging Frameworks — Logger API vs. Appender
 
 SLF4J is a Bridge. Application code calls `Logger.info(...)` — the abstraction. Logback, Log4j2, java.util.logging — these are implementations plugged in at runtime via the `LoggerFactory` binding. Your application compiles against `org.slf4j:slf4j-api`. Which backend runs is a deployment decision. Adding a new log destination (Splunk, Datadog) means adding a new Appender implementation; application code is untouched.
 
-### 8.4 Payment Processing — Payment Flow vs. Payment Gateway
+### 9.4 Payment Processing — Payment Flow vs. Payment Gateway
 
 An e-commerce platform has two axes:
 
@@ -483,13 +519,13 @@ Without Bridge: `StripeOneTimeCharge`, `PayPalOneTimeCharge`, `RazorpaySubscript
 
 With Bridge: `PaymentFlow` (abstraction) holds a `PaymentGateway` (implementor). `Subscription extends PaymentFlow` handles recurring logic; `StripeGateway implements PaymentGateway` handles Stripe API calls. Adding PayPal requires one class. Adding a Layaway flow requires one class. Neither touches the other.
 
-### 8.5 Device Drivers — OS Abstraction vs. Hardware Implementation
+### 9.5 Device Drivers — OS Abstraction vs. Hardware Implementation
 
 Operating systems use Bridge to manage hardware. The kernel defines an abstract device interface: `read()`, `write()`, `ioctl()`. Hardware vendors implement that interface for their specific chips. A USB storage driver and a network card driver both conform to the same kernel interface. The OS "abstraction" (file system, network stack) calls the standard interface; hardware vendors provide the "implementors." Adding a new graphics card model requires a new driver implementation; the kernel is unaffected.
 
 ---
 
-## 9. Bridge vs Adapter
+## 10. Bridge vs Adapter
 
 These two patterns are frequently confused because both involve two class hierarchies communicating through a reference. The critical difference is *when* and *why* they are applied.
 
@@ -503,76 +539,45 @@ These two patterns are frequently confused because both involve two class hierar
 
 **Concrete example of the distinction:**
 
-- Bridge (this module): `Shape` and `Color` are designed together. `Shape` is written knowing it will hold a `Color`. The bridge is intentional from the start.
-- Adapter: You have a legacy `LegacyColorProvider` class with a method `getColorName()`. You need it to work as a `Color` (which requires `fill()`). You write a `LegacyColorAdapter implements Color` that wraps `LegacyColorProvider` and delegates `fill()` to `getColorName()`. You never changed `LegacyColorProvider`; you adapted it.
+- Bridge (this module): `AbstractShape` and `IColor` are designed together. `AbstractShape` is written knowing it will hold an `IColor`. The bridge is intentional from the start.
+- Adapter: You have a legacy `LegacyColorProvider` class with a method `getColorName()`. You need it to work as an `IColor` (which requires `fill()`). You write a `LegacyColorAdapter implements IColor` that wraps `LegacyColorProvider` and delegates `fill()` to `getColorName()`. You never changed `LegacyColorProvider`; you adapted it.
 
 Think of it this way: Bridge is **architectural** (planned), Adapter is **tactical** (after-the-fact fix).
 
 ---
 
-## 10. Key Design Decisions
+## 11. Expected Output
 
-### Why `protected final Color color`?
+Running `BridgeDesignPattern.main()` produces exactly:
 
-Three separate modifiers, each with a distinct purpose:
+```
+Bridge Design Pattern
+Triangle shape with color : Red
+Triangle shape with color : Blue
+Circle shape with color : Red
+Circle shape with color : Blue
+```
 
-- **`protected`**: The `color` field needs to be accessible in `Triangle.draw()` without a getter method. Since `Triangle` is a subclass of `Shape`, `protected` grants access. Making it `private` would force a getter, adding boilerplate. Making it `public` would expose the internal implementor reference to all client code, breaking encapsulation.
+Four lines after the header — one per element of the `shapes` array, in construction order: `Triangle`+`Red`, `Triangle`+`Blue`, `Circle`+`Red`, `Circle`+`Blue`. `Red.fill()` and `Blue.fill()` both return their name with the same capitalization (`"Red"`, `"Blue"`), so the four output lines differ only in shape label and color label — nothing else varies.
 
-- **`final`**: A shape's color is set at construction and should not change. `final` enforces this at compile time — no code inside `Shape` or any subclass can reassign `color` after the constructor returns. This makes `Shape` instances easier to reason about: once built, their color contract never changes.
-
-- `Color` **interface type, not concrete**: `Shape` holds a reference of type `Color`, not `Red` or `Blue`. This is what makes the bridge work — `Shape` is decoupled from all specific colors. You can pass any `Color` implementation at construction time, now or in the future, without modifying `Shape`.
-
-### Why `abstract class Shape` instead of `interface Shape`?
-
-An interface cannot hold instance fields or provide constructor logic. The bridge requires `Shape` to store a `Color` reference in `protected final Color color` and initialize it via `protected Shape(Color color)`. Neither is possible in an interface.
-
-An abstract class is the right tool when you need to:
-1. Define abstract methods that subclasses must implement (`draw()`).
-2. Provide concrete state shared by all subclasses (`color` field).
-3. Enforce an initialization protocol via a constructor (`this.color = color`).
-
-An interface would force each subclass (`Triangle`, `Circle`, etc.) to independently declare and initialize its own `color` field, duplicating the bridge setup in every concrete shape. Abstract class centralizes that boilerplate once.
-
-### Why `super(color)` in the Triangle constructor?
-
-`Shape` declares no no-arg constructor. When you subclass a class that has no default (no-arg) constructor, Java requires that your subclass constructor explicitly call a superclass constructor as its first statement. `super(color)` invokes `Shape(Color color)`, which stores the `Color` reference.
-
-Beyond the mechanical requirement, `super(color)` is correct by design: the bridge connection (`this.color = color`) belongs in the base abstraction (`Shape`), not in each refined abstraction. Every shape needs a color stored the same way. Centralizing that in `Shape`'s constructor and delegating to it via `super()` is the DRY (Don't Repeat Yourself) expression of the pattern.
-
-### Why does `String fill()` return a value instead of `void`?
-
-A `void fill()` would be forced to produce output as a side effect — either printing directly (`System.out.println`) or writing to some shared mutable state. Side-effecting implementors are:
-
-- **Harder to test**: You cannot assert on a return value; you must intercept stdout or check shared state.
-- **Less composable**: `Triangle.draw()` cannot build a string that *includes* the color; it could only trigger the color to print separately, losing the ability to compose the output.
-- **Inflexible**: The caller (Triangle) loses control over what happens with the color information. It cannot log it, return it to a higher caller, or format it differently.
-
-Returning `String` keeps `fill()` a **pure function**: given no input, it returns a predictable value with no side effects. `Triangle.draw()` can then compose the full output string (`"Triange shape with color : " + color.fill()`) and return it, leaving the decision of what to do with that string to the caller. The driver (`BridgeDesignPattern`) then decides to print it.
+To add a fifth combination, append one element to the `shapes` array in `BridgeDesignPattern.java`, e.g. `new Circle(new Red())` again, or introduce a new shape/color class and reference it there. No other file needs to change.
 
 ---
 
-## 11. Output
+## 12. How to Run
 
-Running `BridgeDesignPattern.main()` produces:
+This module is a Maven submodule of the `Design_Patterns` reactor (parent POM at `../../pom.xml`, groupId `com.design.patterns`, artifactId `Bridge_Design_Pattern`). It targets Java 1.8 source/target via the parent's Spring Boot 2.7.7 configuration, but has no Spring runtime dependency of its own — `main()` is a plain JVM entry point.
 
-```
-Bridge Design Pattern
-Triange shape with color : RED
-```
+Build:
 
-Note: `"Triange"` is a typo in `Triangle.draw()` — it should read `"Triangle"`. The pattern is fully correct; only this string literal has a spelling error.
-
-To see a blue triangle instead, change one line in the driver:
-
-```java
-Shape triangle = new Triangle(new Blue());
+```bash
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean compile
 ```
 
-Output becomes:
+Run:
 
-```
-Bridge Design Pattern
-Triange shape with color : Blue
+```bash
+/usr/lib/jvm/java-11-openjdk-amd64/bin/java -cp target/classes com.design.patterns.bridge.BridgeDesignPattern
 ```
 
-No other file changes. No recompilation of `Shape`, `Color`, `Red`, or any contract. This is Bridge in practice: the driver assembles the bridge at construction time, and the rest flows through interfaces.
+(Any JDK 8+ works at runtime; JDK 11 is used above only because the reactor's default JDK breaks an unrelated Lombok-based sibling module. This module itself has no Lombok dependency.)

@@ -1,40 +1,24 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Strategy Design Pattern</title>
-  <style>
-@page { size: A4; margin: 2cm; }
-body { font-family: 'DejaVu Sans', sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.55; }
-h1   { font-size: 20pt; border-bottom: 2px solid #2a5ea8; padding-bottom: 6pt; color: #1a3060; }
-h2   { font-size: 14pt; color: #2a5ea8; margin-top: 18pt; border-bottom: 1px solid #c0cce0; padding-bottom: 3pt; }
-h3   { font-size: 12pt; color: #1a3060; margin-top: 12pt; }
-h4   { font-size: 11pt; color: #333; margin-top: 8pt; }
-pre  { background: #f4f6f8; border: 1px solid #d0d8e8; border-radius: 4px; padding: 10pt; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
-code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.5pt; background: #f0f3f8; padding: 1pt 3pt; border-radius: 2px; }
-pre code { background: transparent; padding: 0; }
-blockquote { border-left: 4px solid #2a5ea8; margin-left: 0; padding-left: 12pt; color: #444; }
-table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
-th, td { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
-th { background: #e8eef8; font-weight: bold; }
-a  { color: #2a5ea8; }
-ul, ol { margin: 4pt 0 4pt 18pt; }
-</style>
-</head>
-<body>
-<h1 id="strategy-design-pattern-behavioral">Strategy Design Pattern (Behavioral)</h1>
+<!doctype html><html><head><meta charset='utf-8'><style>body{font-family:'DejaVu Sans',Arial,sans-serif;font-size:11px;margin:32px 40px;color:#1a1a1a}
+h1{font-size:20px;border-bottom:2px solid #2c5c88;padding-bottom:6px;color:#2c5c88}
+h2{font-size:15px;color:#2c5c88;margin-top:22px;border-bottom:1px solid #ddd;padding-bottom:3px}
+h3{font-size:12.5px;color:#333;margin-top:16px}
+pre{background:#f6f8fa;border:1px solid #e1e4e8;border-radius:4px;padding:8px 10px;font-size:9.5px;white-space:pre-wrap}
+code{font-family:'DejaVu Sans Mono',monospace;background:#f0f2f4;padding:1px 3px;border-radius:2px;font-size:9.5px}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ccc;padding:4px 8px;font-size:10px}
+th{background:#eef2f6}blockquote{border-left:3px solid #2c5c88;margin-left:0;padding-left:12px;color:#444}</style></head><body><h1>Strategy Design Pattern (Behavioral)</h1>
 <blockquote>
 <p>Encapsulate each algorithm behind a common interface so that the algorithm used by a client can be swapped at runtime without modifying the client.</p>
 </blockquote>
 <hr />
-<h2 id="intent">Intent</h2>
+<h2>Intent</h2>
 <p>The Strategy pattern solves the problem of hard-coding a single algorithm inside a class, which forces a code change every time a different algorithm is needed. It defines a family of algorithms, encapsulates each one in its own class, and makes them interchangeable via a shared interface. The object that uses the algorithm (the <em>context</em>) delegates the work to whichever strategy it holds, and neither the context nor the caller needs to know the implementation details.</p>
 <hr />
-<h2 id="real-world-analogy">Real-world analogy</h2>
+<h2>Real-world analogy</h2>
 <p>Think of a pocket calculator with a mode dial. The display, the number buttons, and the equals key never change — that is the <strong>context</strong>. What changes is the <em>operation</em> selected: add, subtract, multiply, or divide. Each mode is an independent, interchangeable strategy. Rotating the dial (injecting a different strategy) does not require rewiring the calculator; it simply changes which algorithm the fixed infrastructure delegates to when the equals key is pressed.</p>
 <hr />
-<h2 id="how-the-pattern-works">How the pattern works</h2>
-<p>When <code>main()</code> constructs a <code>Calculator</code> it passes in an <code>OperationStrategy</code>. The <code>Calculator</code> stores that reference in a field. Every call to <code>calculate(x, y)</code> is forwarded to <code>operationStrategy.doOperation(x, y)</code>. The <code>Calculator</code> never knows — or cares — whether it is adding, subtracting, multiplying, or dividing. Any class that implements <code>OperationStrategy</code> can be plugged in without touching <code>Calculator</code> at all.</p>
+<h2>How the pattern works</h2>
+<p>When <code>main()</code> constructs a <code>Calculator</code> it passes in an <code>OperationStrategy</code>. The <code>Calculator</code> stores that reference in a field. Every call to <code>calculate(x, y)</code> is forwarded to <code>operationStrategy.doOperation(x, y)</code>. The <code>Calculator</code> never knows — or cares — whether it is adding, subtracting, multiplying, or dividing. Any class that implements <code>OperationStrategy</code> can be plugged in without touching <code>Calculator</code> at all. Beyond construction-time injection, <code>Calculator</code> also exposes <code>setOperationStrategy(...)</code>, so the very same context instance can be re-armed with a different algorithm at runtime — the client in this project does exactly that, swapping the strategy four times on one <code>Calculator</code> object to perform addition, subtraction, multiplication, and division in sequence.</p>
 <p>The four structural roles are:</p>
 <table>
 <thead>
@@ -50,7 +34,7 @@ ul, ol { margin: 4pt 0 4pt 18pt; }
 </tr>
 <tr>
 <td>Concrete Strategy</td>
-<td><code>AdditionOperationStrategy</code>, <code>SubstractionOperationStrategy</code>, <code>MultiplicationOperationStrategy</code>, <code>DivisionOperationStrategy</code></td>
+<td><code>AdditionOperationStrategy</code>, <code>SubtractionOperationStrategy</code>, <code>MultiplicationOperationStrategy</code>, <code>DivisionOperationStrategy</code></td>
 </tr>
 <tr>
 <td>Context</td>
@@ -58,31 +42,32 @@ ul, ol { margin: 4pt 0 4pt 18pt; }
 </tr>
 <tr>
 <td>Client</td>
-<td><code>DesignPatternsApplication.main()</code></td>
+<td><code>StrategyDesignPattern.main()</code></td>
 </tr>
 </tbody>
 </table>
 <hr />
-<h2 id="uml-class-diagram-ascii">UML class diagram (ASCII)</h2>
-<pre><code> DesignPatternsApplication
+<h2>UML class diagram (ASCII)</h2>
+<pre><code> StrategyDesignPattern
        (Client)
  ┌────────────────────────┐
  │ + main(String[] args)  │
  └────────────────────────┘
-            │ creates
+            │ creates / re-arms
             ▼
- ┌────────────────────────┐           ┌──────────────────────────┐
- │       Calculator        │           │      &lt;&lt;interface&gt;&gt;        │
- │       (Context)         │──────────▶│     OperationStrategy    │
- ├────────────────────────┤  depends  ├──────────────────────────┤
- │ - operationStrategy     │  on       │ + doOperation(int, int)  │
- ├────────────────────────┤           └──────────────────────────┘
- │ + Calculator(Strategy)  │                        ▲
- │ + calculate(int, int)   │                        │ implements
- └────────────────────────┘            ┌────────────┼────────────┬──────────────────┐
+ ┌────────────────────────────┐       ┌──────────────────────────┐
+ │       Calculator            │       │      &lt;&lt;interface&gt;&gt;        │
+ │       (Context)             │──────▶│     OperationStrategy    │
+ ├────────────────────────────┤ depends├──────────────────────────┤
+ │ - operationStrategy         │ on    │ + doOperation(int, int)  │
+ ├────────────────────────────┤       └──────────────────────────┘
+ │ + Calculator(Strategy)      │                    ▲
+ │ + setOperationStrategy(...) │                    │ implements
+ │ + calculate(int, int)       │                    │
+ └────────────────────────────┘        ┌────────────┼────────────┬──────────────────┐
                                         │            │            │                  │
                            ┌────────────────┐ ┌──────────────┐ ┌────────────────┐ ┌──────────────┐
-                           │  Addition-     │ │ Substraction- │ │ Multiplication-│ │ Division-    │
+                           │  Addition-     │ │ Subtraction- │ │ Multiplication-│ │ Division-    │
                            │  Operation-    │ │ Operation-    │ │ Operation-     │ │ Operation-   │
                            │  Strategy      │ │ Strategy      │ │ Strategy       │ │ Strategy     │
                            ├────────────────┤ ├──────────────┤ ├────────────────┤ ├──────────────┤
@@ -91,7 +76,7 @@ ul, ol { margin: 4pt 0 4pt 18pt; }
                            └────────────────┘ └──────────────┘ └────────────────┘ └──────────────┘
 </code></pre>
 <hr />
-<h2 id="the-players">The players</h2>
+<h2>The players</h2>
 <ul>
 <li>
 <p><strong><code>OperationStrategy</code></strong> (interface — Strategy role) — declares the single contract method <code>doOperation(int x, int y)</code> that every algorithm must honour. The existence of this interface is what makes all concrete strategies interchangeable from the context's point of view.</p>
@@ -100,7 +85,7 @@ ul, ol { margin: 4pt 0 4pt 18pt; }
 <p><strong><code>AdditionOperationStrategy</code></strong> (Concrete Strategy) — implements <code>OperationStrategy</code> by returning <code>x + y</code>.</p>
 </li>
 <li>
-<p><strong><code>SubstractionOperationStrategy</code></strong> (Concrete Strategy) — implements <code>OperationStrategy</code> by returning <code>x - y</code>.</p>
+<p><strong><code>SubtractionOperationStrategy</code></strong> (Concrete Strategy) — implements <code>OperationStrategy</code> by returning <code>x - y</code>.</p>
 </li>
 <li>
 <p><strong><code>MultiplicationOperationStrategy</code></strong> (Concrete Strategy) — implements <code>OperationStrategy</code> by returning <code>x * y</code>.</p>
@@ -109,15 +94,15 @@ ul, ol { margin: 4pt 0 4pt 18pt; }
 <p><strong><code>DivisionOperationStrategy</code></strong> (Concrete Strategy) — implements <code>OperationStrategy</code> by returning <code>x / y</code> using integer division.</p>
 </li>
 <li>
-<p><strong><code>Calculator</code></strong> (Context) — stores an <code>OperationStrategy</code> reference and delegates all arithmetic to it. It is entirely decoupled from every concrete strategy class.</p>
+<p><strong><code>Calculator</code></strong> (Context) — stores an <code>OperationStrategy</code> reference and delegates all arithmetic to it. It is entirely decoupled from every concrete strategy class. Besides constructor injection, it exposes <code>setOperationStrategy(...)</code>, which lets the same instance be re-armed with a different algorithm at runtime.</p>
 </li>
 <li>
-<p><strong><code>DesignPatternsApplication</code></strong> (Client / entry point) — starts the Spring Boot application and exercises the pattern by wiring <code>AdditionOperationStrategy</code> into a <code>Calculator</code> and invoking <code>calculate(5, 20)</code>.</p>
+<p><strong><code>StrategyDesignPattern</code></strong> (Client / entry point) — starts the Spring Boot application and exercises the pattern by wiring <code>AdditionOperationStrategy</code> into a <code>Calculator</code>, printing the result of <code>calculate(5, 20)</code>, and then reusing the same <code>Calculator</code> instance three more times — calling <code>setOperationStrategy</code> with <code>SubtractionOperationStrategy</code>, <code>MultiplicationOperationStrategy</code>, and <code>DivisionOperationStrategy</code> in turn and printing each result — to demonstrate that the strategy can be swapped at runtime without replacing the context.</p>
 </li>
 </ul>
 <hr />
-<h2 id="code-walkthrough-every-line-explained">Code walkthrough — every line explained</h2>
-<h3 id="operationstrategyjava"><code>OperationStrategy.java</code></h3>
+<h2>Code walkthrough — every line explained</h2>
+<h3><code>OperationStrategy.java</code></h3>
 <pre><code class="language-java">package com.design.patterns.strategy;
 
 public interface OperationStrategy {
@@ -128,7 +113,7 @@ public interface OperationStrategy {
 <p><strong>Line by line:</strong></p>
 <ul>
 <li>
-<p><code>package com.design.patterns.strategy;</code> — Declares that this compilation unit belongs to the <code>com.design.patterns.strategy</code> package. It is placed in its own package (separate from the concrete implementations which live in <code>.concretStrategy</code> and the context which lives in <code>.context</code>) so that the strategy interface layer is isolated: any code that depends only on the abstraction imports from this package and never needs to know the concrete sub-package exists.</p>
+<p><code>package com.design.patterns.strategy;</code> — Declares that this compilation unit belongs to the <code>com.design.patterns.strategy</code> package. It is placed in its own package (separate from the concrete implementations which live in <code>.concreteStrategy</code> and the context which lives in <code>.context</code>) so that the strategy interface layer is isolated: any code that depends only on the abstraction imports from this package and never needs to know the concrete sub-package exists.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Separates the package declaration from the type declaration, following standard Java style.</p>
@@ -147,8 +132,8 @@ public interface OperationStrategy {
 </li>
 </ul>
 <hr />
-<h3 id="additionoperationstrategyjava"><code>AdditionOperationStrategy.java</code></h3>
-<pre><code class="language-java">package com.design.patterns.strategy.concretStrategy;
+<h3><code>AdditionOperationStrategy.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.strategy.concreteStrategy;
 
 import com.design.patterns.strategy.OperationStrategy;
 
@@ -163,7 +148,7 @@ public class AdditionOperationStrategy implements OperationStrategy {
 <p><strong>Line by line:</strong></p>
 <ul>
 <li>
-<p><code>package com.design.patterns.strategy.concretStrategy;</code> — Places this class in the <code>concretStrategy</code> sub-package. Grouping all four concrete strategies here separates "what algorithms exist" from "what the algorithm contract is" and from "who uses the algorithm". This mirrors a clean layering principle: strategy interface, concrete strategies, and context each occupy their own package.</p>
+<p><code>package com.design.patterns.strategy.concreteStrategy;</code> — Places this class in the <code>concreteStrategy</code> sub-package. Grouping all four concrete strategies here separates "what algorithms exist" from "what the algorithm contract is" and from "who uses the algorithm". This mirrors a clean layering principle: strategy interface, concrete strategies, and context each occupy their own package.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Separates the package declaration from the import block, per Java convention.</p>
@@ -197,12 +182,12 @@ public class AdditionOperationStrategy implements OperationStrategy {
 </li>
 </ul>
 <hr />
-<h3 id="substractionoperationstrategyjava"><code>SubstractionOperationStrategy.java</code></h3>
-<pre><code class="language-java">package com.design.patterns.strategy.concretStrategy;
+<h3><code>SubtractionOperationStrategy.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.strategy.concreteStrategy;
 
 import com.design.patterns.strategy.OperationStrategy;
 
-public class SubstractionOperationStrategy implements OperationStrategy {
+public class SubtractionOperationStrategy implements OperationStrategy {
 
     @Override
     public int doOperation(int x, int y) {
@@ -213,7 +198,7 @@ public class SubstractionOperationStrategy implements OperationStrategy {
 <p><strong>Line by line:</strong></p>
 <ul>
 <li>
-<p><code>package com.design.patterns.strategy.concretStrategy;</code> — Same <code>concretStrategy</code> sub-package as all concrete strategies, grouping them together for the cohesion reason explained above.</p>
+<p><code>package com.design.patterns.strategy.concreteStrategy;</code> — Same <code>concreteStrategy</code> sub-package as all concrete strategies, grouping them together for the cohesion reason explained above.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Standard Java separator between package declaration and imports.</p>
@@ -225,7 +210,7 @@ public class SubstractionOperationStrategy implements OperationStrategy {
 <p><em>(blank line)</em> — Separates the import block from the class declaration.</p>
 </li>
 <li>
-<p><code>public class SubstractionOperationStrategy implements OperationStrategy {</code> — Declares the subtraction concrete strategy. The class name encodes both the operation (<code>Substraction</code>) and the role (<code>OperationStrategy</code>), making its purpose immediately readable in any code that instantiates it. The opening <code>{</code> begins the class body. <em>(Note: the canonical English spelling is "Subtraction" with one <code>s</code>; the name here preserves the source as written.)</em></p>
+<p><code>public class SubtractionOperationStrategy implements OperationStrategy {</code> — Declares the subtraction concrete strategy. The class name encodes both the operation (<code>Subtraction</code>) and the role (<code>OperationStrategy</code>), making its purpose immediately readable in any code that instantiates it. The opening <code>{</code> begins the class body.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Blank line for readability inside the class body.</p>
@@ -243,12 +228,12 @@ public class SubstractionOperationStrategy implements OperationStrategy {
 <p><code>}</code> — Closes the <code>doOperation</code> method body.</p>
 </li>
 <li>
-<p><code>}</code> — Closes the <code>SubstractionOperationStrategy</code> class body.</p>
+<p><code>}</code> — Closes the <code>SubtractionOperationStrategy</code> class body.</p>
 </li>
 </ul>
 <hr />
-<h3 id="multiplicationoperationstrategyjava"><code>MultiplicationOperationStrategy.java</code></h3>
-<pre><code class="language-java">package com.design.patterns.strategy.concretStrategy;
+<h3><code>MultiplicationOperationStrategy.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.strategy.concreteStrategy;
 
 import com.design.patterns.strategy.OperationStrategy;
 
@@ -263,7 +248,7 @@ public class MultiplicationOperationStrategy implements OperationStrategy {
 <p><strong>Line by line:</strong></p>
 <ul>
 <li>
-<p><code>package com.design.patterns.strategy.concretStrategy;</code> — Same concrete-strategy sub-package, same cohesion reasoning as the other concrete strategies.</p>
+<p><code>package com.design.patterns.strategy.concreteStrategy;</code> — Same concrete-strategy sub-package, same cohesion reasoning as the other concrete strategies.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Standard Java separator.</p>
@@ -297,8 +282,8 @@ public class MultiplicationOperationStrategy implements OperationStrategy {
 </li>
 </ul>
 <hr />
-<h3 id="divisionoperationstrategyjava"><code>DivisionOperationStrategy.java</code></h3>
-<pre><code class="language-java">package com.design.patterns.strategy.concretStrategy;
+<h3><code>DivisionOperationStrategy.java</code></h3>
+<pre><code class="language-java">package com.design.patterns.strategy.concreteStrategy;
 
 import com.design.patterns.strategy.OperationStrategy;
 
@@ -313,7 +298,7 @@ public class DivisionOperationStrategy implements OperationStrategy {
 <p><strong>Line by line:</strong></p>
 <ul>
 <li>
-<p><code>package com.design.patterns.strategy.concretStrategy;</code> — Same concrete-strategy sub-package as the three other concrete strategies.</p>
+<p><code>package com.design.patterns.strategy.concreteStrategy;</code> — Same concrete-strategy sub-package as the three other concrete strategies.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Standard Java separator between package declaration and import block.</p>
@@ -347,7 +332,7 @@ public class DivisionOperationStrategy implements OperationStrategy {
 </li>
 </ul>
 <hr />
-<h3 id="calculatorjava"><code>Calculator.java</code></h3>
+<h3><code>Calculator.java</code></h3>
 <pre><code class="language-java">package com.design.patterns.context;
 
 import com.design.patterns.strategy.OperationStrategy;
@@ -356,8 +341,12 @@ public class Calculator {
 
     private OperationStrategy operationStrategy;
 
-    public Calculator(OperationStrategy _operationStrategy) {
-        this.operationStrategy = _operationStrategy;
+    public Calculator(OperationStrategy operationStrategy) {
+        this.operationStrategy = operationStrategy;
+    }
+
+    public void setOperationStrategy(OperationStrategy operationStrategy) {
+        this.operationStrategy = operationStrategy;
     }
 
     public int calculate(int x, int y) {
@@ -375,40 +364,52 @@ public class Calculator {
 <p><em>(blank line)</em> — Standard Java separator between the package declaration and the import block.</p>
 </li>
 <li>
-<p><code>import com.design.patterns.strategy.OperationStrategy;</code> — Brings the <code>OperationStrategy</code> interface type into scope. The context depends only on the interface, not on any concrete strategy class. This is the core of the Dependency Inversion Principle at work: <code>Calculator</code> imports from the <code>strategy</code> package (the abstraction), never from <code>strategy.concretStrategy</code> (the implementations). This import is the only cross-package dependency <code>Calculator</code> has.</p>
+<p><code>import com.design.patterns.strategy.OperationStrategy;</code> — Brings the <code>OperationStrategy</code> interface type into scope. The context depends only on the interface, not on any concrete strategy class. This is the core of the Dependency Inversion Principle at work: <code>Calculator</code> imports from the <code>strategy</code> package (the abstraction), never from <code>strategy.concreteStrategy</code> (the implementations). This import is the only cross-package dependency <code>Calculator</code> has.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Separates the import block from the class declaration.</p>
 </li>
 <li>
-<p><code>public class Calculator {</code> — Declares the context class. It is <code>public</code> so that the client (<code>DesignPatternsApplication</code>) in a different package can instantiate it. Opening <code>{</code> begins the class body.</p>
+<p><code>public class Calculator {</code> — Declares the context class. It is <code>public</code> so that the client (<code>StrategyDesignPattern</code>) in a different package can instantiate it. Opening <code>{</code> begins the class body.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Blank line separating the class header from the field declaration, following standard Java formatting.</p>
 </li>
 <li>
-<p><code>private OperationStrategy operationStrategy;</code> — Declares an instance field that holds a reference to whichever strategy this calculator is currently configured with. It is typed as the <em>interface</em> (<code>OperationStrategy</code>), not as any concrete class — this is the polymorphic dependency that makes the Strategy pattern work. It is <code>private</code> to enforce encapsulation: no external code can read or overwrite the strategy directly; it can only be set via the constructor. This field is the single point through which the entire pattern's flexibility flows.</p>
+<p><code>private OperationStrategy operationStrategy;</code> — Declares an instance field that holds a reference to whichever strategy this calculator is currently configured with. It is typed as the <em>interface</em> (<code>OperationStrategy</code>), not as any concrete class — this is the polymorphic dependency that makes the Strategy pattern work. It is <code>private</code> to enforce encapsulation: no external code can read the strategy directly or overwrite it except through the constructor or the setter below. This field is the single point through which the entire pattern's flexibility flows.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Blank line separating the field declaration from the constructor.</p>
 </li>
 <li>
-<p><code>public Calculator(OperationStrategy _operationStrategy) {</code> — Declares the constructor that accepts an <code>OperationStrategy</code>. Using constructor injection (rather than a setter or a default instantiation inside the constructor body) makes the dependency mandatory and visible: you cannot create a <code>Calculator</code> without supplying a strategy, preventing the field from ever being <code>null</code> due to a forgotten initialisation. The parameter is prefixed with <code>_</code> to distinguish it from the field of the same base name — a naming convention chosen here to avoid ambiguity, though <code>this.operationStrategy = operationStrategy</code> with identical names is equally valid. The opening <code>{</code> begins the constructor body.</p>
+<p><code>public Calculator(OperationStrategy operationStrategy) {</code> — Declares the constructor that accepts an <code>OperationStrategy</code>. Using constructor injection (rather than relying solely on a setter, or instantiating a default strategy inside the constructor body) makes the dependency mandatory and visible: you cannot create a <code>Calculator</code> without supplying a strategy, preventing the field from ever being <code>null</code> due to a forgotten initialisation. The parameter shares its name with the field; inside the body <code>this.operationStrategy</code> disambiguates the field from the parameter. The opening <code>{</code> begins the constructor body.</p>
 </li>
 <li>
-<p><code>this.operationStrategy = _operationStrategy;</code> — Stores the injected strategy into the instance field. <code>this.operationStrategy</code> explicitly refers to the field declared above; <code>_operationStrategy</code> is the constructor parameter. This single assignment is the entire body of the constructor: all the context setup amounts to wiring the strategy reference.</p>
+<p><code>this.operationStrategy = operationStrategy;</code> — Stores the injected strategy into the instance field. <code>this.operationStrategy</code> explicitly refers to the field declared above; the bare <code>operationStrategy</code> on the right-hand side refers to the constructor parameter, which Java resolves by scope (the nearer, parameter-level declaration wins when unqualified). This single assignment is the entire body of the constructor: all the context setup amounts to wiring the strategy reference.</p>
 </li>
 <li>
 <p><code>}</code> — Closes the constructor body.</p>
 </li>
 <li>
-<p><em>(blank line)</em> — Blank line separating the constructor from the <code>calculate</code> method.</p>
+<p><em>(blank line)</em> — Blank line separating the constructor from the setter.</p>
 </li>
 <li>
-<p><code>public int calculate(int x, int y) {</code> — Declares the public API of the context. Callers ask the <code>Calculator</code> to compute a result; they pass two integer operands and receive the result. The method name <code>calculate</code> is intentionally generic — it does not say "add" or "multiply" because the actual operation depends on which strategy is held. This genericity is important: the same method name works regardless of which algorithm is plugged in. Opening <code>{</code> begins the method body.</p>
+<p><code>public void setOperationStrategy(OperationStrategy operationStrategy) {</code> — Declares a setter that lets callers replace the strategy on an already-constructed <code>Calculator</code>. This is what makes the pattern demonstrably <em>dynamic</em>: without this method, switching algorithms would require discarding the old <code>Calculator</code> and building a new one. With it, the same context instance persists across strategy changes — its identity does not change even though its behaviour does. The opening <code>{</code> begins the method body.</p>
 </li>
 <li>
-<p><code>return operationStrategy.doOperation(x, y);</code> — Delegates the computation entirely to the strategy. The <code>Calculator</code> performs no arithmetic itself; it simply forwards the call. This single line is the heart of the Strategy pattern in the context: the context knows <em>that</em> an operation must happen but not <em>how</em> it happens. The result returned by the strategy is passed straight back to the caller without transformation.</p>
+<p><code>this.operationStrategy = operationStrategy;</code> — Overwrites the field with the newly supplied strategy, exactly mirroring the assignment in the constructor. Any <code>calculate(...)</code> call made after this line dispatches to the new strategy's <code>doOperation</code>; any call made before it dispatched to the old one. No other state in <code>Calculator</code> changes.</p>
+</li>
+<li>
+<p><code>}</code> — Closes the <code>setOperationStrategy</code> method body.</p>
+</li>
+<li>
+<p><em>(blank line)</em> — Blank line separating the setter from the <code>calculate</code> method.</p>
+</li>
+<li>
+<p><code>public int calculate(int x, int y) {</code> — Declares the public API of the context. Callers ask the <code>Calculator</code> to compute a result; they pass two integer operands and receive the result. The method name <code>calculate</code> is intentionally generic — it does not say "add" or "multiply" because the actual operation depends on which strategy is currently held. This genericity is important: the same method name works regardless of which algorithm is plugged in, and regardless of whether that algorithm was set via the constructor or via <code>setOperationStrategy</code>. Opening <code>{</code> begins the method body.</p>
+</li>
+<li>
+<p><code>return operationStrategy.doOperation(x, y);</code> — Delegates the computation entirely to whichever strategy the field currently references. The <code>Calculator</code> performs no arithmetic itself; it simply forwards the call. This single line is the heart of the Strategy pattern in the context: the context knows <em>that</em> an operation must happen but not <em>how</em> it happens. The result returned by the strategy is passed straight back to the caller without transformation.</p>
 </li>
 <li>
 <p><code>}</code> — Closes the <code>calculate</code> method body.</p>
@@ -421,25 +422,35 @@ public class Calculator {
 </li>
 </ul>
 <hr />
-<h3 id="designpatternsapplicationjava"><code>DesignPatternsApplication.java</code></h3>
+<h3><code>StrategyDesignPattern.java</code></h3>
 <pre><code class="language-java">package com.design.patterns;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import com.design.patterns.context.Calculator;
-import com.design.patterns.strategy.concretStrategy.AdditionOperationStrategy;
+import com.design.patterns.strategy.concreteStrategy.AdditionOperationStrategy;
+import com.design.patterns.strategy.concreteStrategy.DivisionOperationStrategy;
+import com.design.patterns.strategy.concreteStrategy.MultiplicationOperationStrategy;
+import com.design.patterns.strategy.concreteStrategy.SubtractionOperationStrategy;
 
 @SpringBootApplication
-public class DesignPatternsApplication {
+public class StrategyDesignPattern {
 
     public static void main(String[] args) {
-        SpringApplication.run(DesignPatternsApplication.class, args);
+        SpringApplication.run(StrategyDesignPattern.class, args);
 
         Calculator calculator = new Calculator(new AdditionOperationStrategy());
-        int calculate = calculator.calculate(5, 20);
-        System.out.println(calculate);
+        System.out.println(&quot;5 + 20 = &quot; + calculator.calculate(5, 20));
 
+        calculator.setOperationStrategy(new SubtractionOperationStrategy());
+        System.out.println(&quot;20 - 5 = &quot; + calculator.calculate(20, 5));
+
+        calculator.setOperationStrategy(new MultiplicationOperationStrategy());
+        System.out.println(&quot;5 * 20 = &quot; + calculator.calculate(5, 20));
+
+        calculator.setOperationStrategy(new DivisionOperationStrategy());
+        System.out.println(&quot;20 / 5 = &quot; + calculator.calculate(20, 5));
     }
 
 }
@@ -447,7 +458,7 @@ public class DesignPatternsApplication {
 <p><strong>Line by line:</strong></p>
 <ul>
 <li>
-<p><code>package com.design.patterns;</code> — Declares that this class belongs to the root package <code>com.design.patterns</code>. Spring Boot's default component-scan starts from the package of the <code>@SpringBootApplication</code>-annotated class, so placing the entry point at the root package ensures all sub-packages (<code>context</code>, <code>strategy</code>, <code>strategy.concretStrategy</code>) are automatically scanned for Spring components.</p>
+<p><code>package com.design.patterns;</code> — Declares that this class belongs to the root package <code>com.design.patterns</code>. Spring Boot's default component-scan starts from the package of the <code>@SpringBootApplication</code>-annotated class, so placing the entry point at the root package ensures all sub-packages (<code>context</code>, <code>strategy</code>, <code>strategy.concreteStrategy</code>) are automatically scanned for Spring components.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Standard separator between the package declaration and the import block.</p>
@@ -465,7 +476,16 @@ public class DesignPatternsApplication {
 <p><code>import com.design.patterns.context.Calculator;</code> — Brings the <code>Calculator</code> context class into scope so it can be instantiated inside <code>main()</code>.</p>
 </li>
 <li>
-<p><code>import com.design.patterns.strategy.concretStrategy.AdditionOperationStrategy;</code> — Brings the concrete addition strategy into scope. This is the only place in the entire project where a concrete strategy class is referenced by name from outside its own file. Everywhere else, the code depends only on the <code>OperationStrategy</code> interface. This is intentional: the client is precisely the one place where a specific algorithm is chosen, so the concrete type name surfaces only here.</p>
+<p><code>import com.design.patterns.strategy.concreteStrategy.AdditionOperationStrategy;</code> — Brings the concrete addition strategy into scope.</p>
+</li>
+<li>
+<p><code>import com.design.patterns.strategy.concreteStrategy.DivisionOperationStrategy;</code> — Brings the concrete division strategy into scope.</p>
+</li>
+<li>
+<p><code>import com.design.patterns.strategy.concreteStrategy.MultiplicationOperationStrategy;</code> — Brings the concrete multiplication strategy into scope.</p>
+</li>
+<li>
+<p><code>import com.design.patterns.strategy.concreteStrategy.SubtractionOperationStrategy;</code> — Brings the concrete subtraction strategy into scope. Together, these four imports are the only place in the entire project where concrete strategy classes are referenced by name from outside their own files. Everywhere else — most importantly inside <code>Calculator</code> — the code depends only on the <code>OperationStrategy</code> interface. This is intentional: the client is precisely the one place where a specific algorithm is chosen, so the concrete type names surface only here. The imports are listed alphabetically, a common IDE-enforced convention that keeps multi-import blocks scannable.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Separates the import block from the class declaration.</p>
@@ -474,7 +494,7 @@ public class DesignPatternsApplication {
 <p><code>@SpringBootApplication</code> — A Spring Boot meta-annotation that is shorthand for three annotations combined: <code>@Configuration</code> (this class can declare Spring beans), <code>@EnableAutoConfiguration</code> (Spring Boot automatically configures the application context based on the classpath), and <code>@ComponentScan</code> (Spring scans the <code>com.design.patterns</code> package and all sub-packages for annotated components). Without this annotation, the Spring context would not be bootstrapped. It is placed on the entry-point class because Spring Boot uses that class's package as the scan root.</p>
 </li>
 <li>
-<p><code>public class DesignPatternsApplication {</code> — Declares the Spring Boot application class. It is <code>public</code> so that the JVM can invoke its <code>main</code> method as the application entry point. Opening <code>{</code> begins the class body.</p>
+<p><code>public class StrategyDesignPattern {</code> — Declares the Spring Boot application class. Its name identifies exactly which design pattern this runnable module demonstrates, mirroring the naming convention used by every other module in this repository (and its RealUseCase sibling). It is <code>public</code> so that the JVM can invoke its <code>main</code> method as the application entry point. Opening <code>{</code> begins the class body.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Blank line separating the class header from the method declaration.</p>
@@ -483,45 +503,66 @@ public class DesignPatternsApplication {
 <p><code>public static void main(String[] args) {</code> — The standard Java entry-point method signature. <code>public</code> is required so the JVM can call it from outside the class. <code>static</code> is required so the JVM can invoke it without needing a pre-existing instance of the class. <code>void</code> is required because the JVM ignores any return value from <code>main</code>. <code>String[] args</code> receives command-line arguments passed when the JVM is launched; Spring Boot uses these to allow property overrides. The opening <code>{</code> begins the method body.</p>
 </li>
 <li>
-<p><code>SpringApplication.run(DesignPatternsApplication.class, args);</code> — Starts the Spring Boot application. <code>DesignPatternsApplication.class</code> is the primary source class: Spring Boot uses its package as the component-scan root and its <code>@SpringBootApplication</code> annotation to drive auto-configuration. <code>args</code> passes command-line arguments through to Spring, allowing properties such as <code>server.port</code> to be overridden at launch. This line starts an embedded Tomcat server (because <code>spring-boot-starter-web</code> is on the classpath), initialises the application context, and writes the Spring Boot ASCII banner plus INFO startup log lines to standard output. After this call returns, the embedded server continues running on background threads.</p>
+<p><code>SpringApplication.run(StrategyDesignPattern.class, args);</code> — Starts the Spring Boot application. <code>StrategyDesignPattern.class</code> is the primary source class: Spring Boot uses its package as the component-scan root and its <code>@SpringBootApplication</code> annotation to drive auto-configuration. <code>args</code> passes command-line arguments through to Spring, allowing properties such as <code>server.port</code> to be overridden at launch. This line starts an embedded Tomcat server (because <code>spring-boot-starter-web</code> is on the classpath), initialises the application context, and writes the Spring Boot ASCII banner plus INFO startup log lines to standard output. After this call returns, the embedded server continues running on background threads.</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Blank line separating the Spring Boot bootstrap call from the pattern demonstration code. This visual separation makes clear that the lines below are the pattern demo, independent of the Spring context.</p>
 </li>
 <li>
-<p><code>Calculator calculator = new Calculator(new AdditionOperationStrategy());</code> — Demonstrates the Strategy pattern in its simplest form. <code>new AdditionOperationStrategy()</code> creates a concrete strategy instance (an object with no fields). That instance is immediately passed into <code>new Calculator(...)</code> via constructor injection. The <code>Calculator</code> local variable holds the fully configured context object. This is the moment where the strategy <em>choice</em> is made at runtime: to switch to multiplication, one would write <code>new MultiplicationOperationStrategy()</code> here and nothing else in the codebase would change.</p>
+<p><code>Calculator calculator = new Calculator(new AdditionOperationStrategy());</code> — Demonstrates the Strategy pattern's construction-time form. <code>new AdditionOperationStrategy()</code> creates a concrete strategy instance (an object with no fields). That instance is immediately passed into <code>new Calculator(...)</code> via constructor injection. The <code>calculator</code> local variable holds the fully configured context object, initially wired for addition.</p>
 </li>
 <li>
-<p><code>int calculate = calculator.calculate(5, 20);</code> — Invokes the context's generic <code>calculate</code> API with operands <code>5</code> and <code>20</code>. The local variable <code>calculate</code> (a verb used as a noun, mirroring the method name) stores the returned <code>int</code> result. Internally, this chains to <code>operationStrategy.doOperation(5, 20)</code> inside <code>Calculator</code>, which dynamic-dispatches to <code>AdditionOperationStrategy.doOperation(5, 20)</code>, which evaluates <code>5 + 20</code> and returns <code>25</code>. So <code>calculate</code> now holds the value <code>25</code>.</p>
+<p><code>System.out.println("5 + 20 = " + calculator.calculate(5, 20));</code> — Calls <code>calculate(5, 20)</code> on the context. Internally this chains to <code>operationStrategy.doOperation(5, 20)</code> inside <code>Calculator</code>, which dynamic-dispatches to <code>AdditionOperationStrategy.doOperation(5, 20)</code>, evaluating <code>5 + 20</code> and returning <code>25</code>. The <code>int</code> result <code>25</code> is concatenated onto the string <code>"5 + 20 = "</code> (Java auto-converts the <code>int</code> via <code>String.valueOf</code> during <code>+</code> concatenation) and the combined string is printed with a trailing newline.</p>
 </li>
 <li>
-<p><code>System.out.println(calculate);</code> — Prints the result to standard output followed by a newline. <code>System.out</code> is the JVM's standard output <code>PrintStream</code>. <code>println</code> converts the primitive <code>int</code> value <code>25</code> to the string <code>"25"</code> and writes it with a trailing platform-dependent line separator. This is the observable output of the entire pattern demonstration.</p>
+<p><em>(blank line)</em> — Blank line visually separating the addition demonstration from the subtraction demonstration.</p>
 </li>
 <li>
-<p><em>(blank line)</em> — Trailing blank line before the method closing brace.</p>
+<p><code>calculator.setOperationStrategy(new SubtractionOperationStrategy());</code> — Demonstrates the Strategy pattern's <em>runtime</em> form. Rather than constructing a new <code>Calculator</code>, the existing <code>calculator</code> reference is re-armed in place: <code>new SubtractionOperationStrategy()</code> creates a fresh concrete strategy instance, and <code>setOperationStrategy</code> overwrites the context's internal <code>operationStrategy</code> field with it. The <code>calculator</code> object's identity is unchanged; only its behaviour changes.</p>
 </li>
 <li>
-<p><code>}</code> — Closes the <code>main</code> method body.</p>
+<p><code>System.out.println("20 - 5 = " + calculator.calculate(20, 5));</code> — Calls <code>calculate(20, 5)</code> on the same <code>calculator</code> instance. This now dispatches to <code>SubtractionOperationStrategy.doOperation(20, 5)</code>, evaluating <code>20 - 5</code> and returning <code>15</code>. The operand order is deliberately <code>(20, 5)</code> — not <code>(5, 20)</code> as in the addition call — because subtraction is not commutative and <code>20 - 5</code> is the meaningful reading. The result is concatenated and printed the same way as before.</p>
+</li>
+<li>
+<p><em>(blank line)</em> — Blank line separating the subtraction demonstration from the multiplication demonstration.</p>
+</li>
+<li>
+<p><code>calculator.setOperationStrategy(new MultiplicationOperationStrategy());</code> — Re-arms <code>calculator</code> a second time, now with a <code>MultiplicationOperationStrategy</code> instance, using the exact same mechanism as the subtraction swap above.</p>
+</li>
+<li>
+<p><code>System.out.println("5 * 20 = " + calculator.calculate(5, 20));</code> — Calls <code>calculate(5, 20)</code>, dispatching to <code>MultiplicationOperationStrategy.doOperation(5, 20)</code>, which evaluates <code>5 * 20</code> and returns <code>100</code>. Multiplication is commutative, so the operand order here matches the addition call rather than the subtraction call; it is printed as <code>"5 * 20 = 100"</code>.</p>
+</li>
+<li>
+<p><em>(blank line)</em> — Blank line separating the multiplication demonstration from the division demonstration.</p>
+</li>
+<li>
+<p><code>calculator.setOperationStrategy(new DivisionOperationStrategy());</code> — Re-arms <code>calculator</code> a third time, now with a <code>DivisionOperationStrategy</code> instance.</p>
+</li>
+<li>
+<p><code>System.out.println("20 / 5 = " + calculator.calculate(20, 5));</code> — Calls <code>calculate(20, 5)</code>, dispatching to <code>DivisionOperationStrategy.doOperation(20, 5)</code>, which evaluates the integer division <code>20 / 5</code> and returns <code>4</code>. As with subtraction, division is not commutative, so the operands are ordered <code>(20, 5)</code> to read as the intended "twenty divided by five".</p>
+</li>
+<li>
+<p><code>}</code> — Closes the <code>main</code> method body. By this point, one <code>Calculator</code> instance has been swapped through four different strategies and used four times, which is the core proof that the pattern decouples "what algorithm runs" from "which object runs it."</p>
 </li>
 <li>
 <p><em>(blank line)</em> — Blank line before the class closing brace.</p>
 </li>
 <li>
-<p><code>}</code> — Closes the <code>DesignPatternsApplication</code> class body.</p>
+<p><code>}</code> — Closes the <code>StrategyDesignPattern</code> class body.</p>
 </li>
 </ul>
 <hr />
-<h2 id="why-these-design-decisions">Why these design decisions</h2>
-<p><strong>Why an interface, not an abstract class?</strong><br />
+<h2>Why these design decisions</h2>
+<p><strong>Why an interface, not an abstract class?</strong>
 An interface enforces a pure contract with no shared state or partial implementation. Any class — regardless of its own inheritance hierarchy — can implement <code>OperationStrategy</code>. If an abstract class had been used, every concrete strategy would be forced to extend it, consuming Java's single inheritance slot and coupling all strategies to a common ancestor that adds no real value.</p>
-<p><strong>Why constructor injection in <code>Calculator</code>?</strong><br />
-Constructor injection makes the dependency mandatory and visible at compile time. You cannot instantiate a <code>Calculator</code> without supplying a strategy. This prevents null-pointer errors from forgotten setter calls and makes the dependency explicit in the public API. The alternative — a <code>setStrategy()</code> setter — would allow a <code>Calculator</code> to exist with no strategy, which is an invalid state.</p>
-<p><strong>Why does <code>Calculator</code> depend on <code>OperationStrategy</code> and not on a specific class?</strong><br />
-This is the Dependency Inversion Principle in action. <code>Calculator</code> depends on an abstraction, not a concretion. This means <code>Calculator</code> is closed for modification and open for extension: adding a new operation (e.g., <code>ModuloOperationStrategy</code>) requires writing one new class and changing zero existing classes — the Open/Closed Principle.</p>
-<p><strong>Why are the concrete strategies in a sub-package (<code>concretStrategy</code>) separate from the interface?</strong><br />
-The interface (<code>OperationStrategy</code>) is what the context and any other consumer depend on. The concrete implementations are interchangeable details. Placing them in a sub-package makes the dependency direction visible in the package structure: <code>context</code> imports <code>strategy</code> (the abstraction), never <code>strategy.concretStrategy</code> (the concretions).</p>
-<p><strong>Why does <code>main()</code> call <code>SpringApplication.run()</code> if the pattern demo does not use Spring?</strong><br />
-This project scaffolds the Spring Boot application runner as a standard container so the pattern can later be wired as a real Spring service (for example, injecting strategies as <code>@Component</code> beans selected by a <code>@Qualifier</code>). The pattern demonstration code that follows the <code>run()</code> call intentionally uses plain <code>new</code> instantiation to keep the core mechanism visible and free of framework detail.</p>
+<p><strong>Why both constructor injection <em>and</em> a <code>setOperationStrategy</code> setter on <code>Calculator</code>?</strong>
+Constructor injection makes the dependency mandatory and visible at compile time: you cannot instantiate a <code>Calculator</code> without supplying an initial strategy, which prevents the field from ever starting out <code>null</code>. The setter is what turns the demo from "pick an algorithm once" into "swap the algorithm live, on one long-lived context object" — which is the scenario the Strategy pattern is really designed for (a pocket calculator's mode dial, a payment processor's selected gateway, a compressor's chosen codec — the object doing the work outlives any single algorithm choice). Because the field always starts populated via the constructor and the setter can only ever replace it with another valid <code>OperationStrategy</code>, <code>operationStrategy</code> can never be observed as <code>null</code> from <code>calculate(...)</code>.</p>
+<p><strong>Why does <code>Calculator</code> depend on <code>OperationStrategy</code> and not on a specific class?</strong>
+This is the Dependency Inversion Principle in action. <code>Calculator</code> depends on an abstraction, not a concretion. This means <code>Calculator</code> is closed for modification and open for extension: adding a new operation (e.g., <code>ModuloOperationStrategy</code>) requires writing one new class and changing zero existing classes — the Open/Closed Principle. That new class could be constructed at startup or swapped in later via <code>setOperationStrategy</code> with no change to <code>Calculator</code> either way.</p>
+<p><strong>Why are the concrete strategies in a sub-package (<code>concreteStrategy</code>) separate from the interface?</strong>
+The interface (<code>OperationStrategy</code>) is what the context and any other consumer depend on. The concrete implementations are interchangeable details. Placing them in a sub-package makes the dependency direction visible in the package structure: <code>context</code> imports <code>strategy</code> (the abstraction), never <code>strategy.concreteStrategy</code> (the concretions).</p>
+<p><strong>Why does <code>main()</code> call <code>SpringApplication.run()</code> if the pattern demo does not use Spring?</strong>
+This project scaffolds the Spring Boot application runner as a standard container so the pattern can later be wired as a real Spring service (for example, injecting strategies as <code>@Component</code> beans selected by a <code>@Qualifier</code>). The pattern demonstration code that follows the <code>run()</code> call intentionally uses plain <code>new</code> instantiation and direct calls to <code>setOperationStrategy</code> to keep the core mechanism visible and free of framework detail.</p>
 <p><strong>Trade-offs:</strong></p>
 <table>
 <thead>
@@ -536,8 +577,8 @@ This project scaffolds the Spring Boot application runner as a standard containe
 <td>More files than a single <code>if/switch</code> block, but each is tiny, independently testable, and adding one never touches existing code</td>
 </tr>
 <tr>
-<td>The context always needs a strategy injected</td>
-<td>Slightly more setup for the caller, but eliminates invalid-null-state bugs at compile time</td>
+<td>The context always needs a strategy injected at construction, even though it can be swapped later</td>
+<td>Slightly more setup for the caller, but eliminates invalid-null-state bugs — the field is never <code>null</code> at any point in the object's lifetime</td>
 </tr>
 <tr>
 <td>Integer division truncates silently</td>
@@ -550,30 +591,27 @@ This project scaffolds the Spring Boot application runner as a standard containe
 </tbody>
 </table>
 <hr />
-<h2 id="execution-flow-step-by-step-trace-of-what-happens-when-main-runs">Execution flow (step-by-step trace of what happens when <code>main()</code> runs)</h2>
+<h2>Execution flow (step-by-step trace of what happens when <code>main()</code> runs)</h2>
 <ol>
-<li>The JVM invokes <code>DesignPatternsApplication.main(args)</code>.</li>
-<li><code>SpringApplication.run(DesignPatternsApplication.class, args)</code> is called.</li>
+<li>The JVM invokes <code>StrategyDesignPattern.main(args)</code>.</li>
+<li><code>SpringApplication.run(StrategyDesignPattern.class, args)</code> is called.</li>
 <li>Spring Boot initialises an <code>AnnotationConfigServletWebServerApplicationContext</code>.</li>
 <li>The embedded Tomcat web server starts on port 8080 (default).</li>
 <li>Spring Boot writes its ASCII-art banner and INFO startup log lines to standard output.</li>
-<li>The log line <code>Started DesignPatternsApplication in X.XXX seconds (JVM running for X.XXX)</code> appears.</li>
+<li>The log line <code>Started StrategyDesignPattern in X.XXX seconds (JVM running for X.XXX)</code> appears.</li>
 <li><code>run()</code> returns after the context is fully refreshed; the Tomcat server remains alive on non-daemon background threads.</li>
 <li>Execution resumes in <code>main()</code> after the <code>run()</code> call.</li>
-<li><code>new AdditionOperationStrategy()</code> constructs an instance of the addition strategy. It is a plain Java object with no fields and no initialisation logic.</li>
-<li><code>new Calculator(additionStrategy)</code> constructs a <code>Calculator</code>. Inside the constructor body, <code>this.operationStrategy = _operationStrategy</code> stores the <code>AdditionOperationStrategy</code> reference into the <code>operationStrategy</code> field.</li>
-<li><code>calculator.calculate(5, 20)</code> is invoked.</li>
-<li>Inside <code>calculate</code>, <code>operationStrategy.doOperation(5, 20)</code> is called on the field.</li>
-<li>The JVM uses dynamic dispatch: the runtime type of <code>operationStrategy</code> is <code>AdditionOperationStrategy</code>, so <code>AdditionOperationStrategy.doOperation</code> is invoked.</li>
-<li>Inside <code>doOperation</code>, <code>5 + 20</code> is evaluated: result is <code>25</code>.</li>
-<li><code>doOperation</code> returns <code>25</code> to <code>calculate</code>, which returns <code>25</code> to <code>main</code>.</li>
-<li>The local variable <code>calculate</code> now holds the primitive value <code>25</code>.</li>
-<li><code>System.out.println(25)</code> converts <code>25</code> to the string <code>"25"</code> and writes it followed by a newline to standard output.</li>
-<li><code>main()</code> returns; the JVM remains alive because the Spring Boot embedded Tomcat server holds live non-daemon threads.</li>
+<li><code>new AdditionOperationStrategy()</code> constructs an instance of the addition strategy — a plain Java object with no fields and no initialisation logic. <code>new Calculator(additionStrategy)</code> constructs a <code>Calculator</code>; inside its constructor, <code>this.operationStrategy = operationStrategy</code> stores that reference into the field.</li>
+<li><code>calculator.calculate(5, 20)</code> is invoked. Inside <code>calculate</code>, <code>operationStrategy.doOperation(5, 20)</code> is called on the field. The JVM uses dynamic dispatch: the runtime type of <code>operationStrategy</code> is <code>AdditionOperationStrategy</code>, so <code>AdditionOperationStrategy.doOperation</code> runs, evaluates <code>5 + 20</code>, and returns <code>25</code>. <code>System.out.println("5 + 20 = " + 25)</code> writes <code>5 + 20 = 25</code> to standard output.</li>
+<li><code>calculator.setOperationStrategy(new SubtractionOperationStrategy())</code> overwrites the same <code>calculator</code> object's <code>operationStrategy</code> field with a new <code>SubtractionOperationStrategy</code> instance. The <code>calculator</code> reference itself does not change.</li>
+<li><code>calculator.calculate(20, 5)</code> is invoked. Dynamic dispatch now resolves to <code>SubtractionOperationStrategy.doOperation</code>, which evaluates <code>20 - 5</code> and returns <code>15</code>. <code>System.out.println("20 - 5 = " + 15)</code> writes <code>20 - 5 = 15</code>.</li>
+<li><code>calculator.setOperationStrategy(new MultiplicationOperationStrategy())</code> overwrites the field again. <code>calculator.calculate(5, 20)</code> dispatches to <code>MultiplicationOperationStrategy.doOperation</code>, evaluates <code>5 * 20</code>, returns <code>100</code>, and <code>5 * 20 = 100</code> is printed.</li>
+<li><code>calculator.setOperationStrategy(new DivisionOperationStrategy())</code> overwrites the field a third time. <code>calculator.calculate(20, 5)</code> dispatches to <code>DivisionOperationStrategy.doOperation</code>, evaluates the integer division <code>20 / 5</code>, returns <code>4</code>, and <code>20 / 5 = 4</code> is printed.</li>
+<li><code>main()</code> returns; the JVM remains alive because the Spring Boot embedded Tomcat server holds live non-daemon threads, until the process is stopped externally (Ctrl-C or a timeout).</li>
 </ol>
 <hr />
-<h2 id="expected-output">Expected output</h2>
-<p>Spring Boot startup banner and INFO log lines appear first (exact content varies by Spring Boot version and system timing). The line produced by the pattern demonstration itself follows immediately after the startup sequence:</p>
+<h2>Expected output</h2>
+<p>Spring Boot's startup banner and INFO log lines appear first (exact content, PID, and timings vary by run and by machine). The four lines produced by the pattern demonstration itself follow immediately after the startup sequence. This is the actual, verbatim console output captured from a real run of the built fat JAR on this module (<code>java -jar target/Strategy_Design_Pattern-0.0.1-SNAPSHOT.jar</code>):</p>
 <pre><code>  .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
 ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
@@ -582,32 +620,51 @@ This project scaffolds the Spring Boot application runner as a standard containe
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v2.7.7)
 
-... INFO o.s.boot.SpringApplication - Starting DesignPatternsApplication ...
-... INFO o.s.boot.SpringApplication - Started DesignPatternsApplication in X.XXX seconds (JVM running for X.XXX) ...
-25
+2026-07-10 11:45:07.754  INFO 3532647 --- [           main] c.design.patterns.StrategyDesignPattern  : Starting StrategyDesignPattern v0.0.1-SNAPSHOT using Java 11.0.31 on gaian with PID 3532647 (/home/gaian/Videos/GO4/Design-Pattern-GO4/Behavioral/Strategy_Design_Pattern/target/Strategy_Design_Pattern-0.0.1-SNAPSHOT.jar started by gaian in /home/gaian/Videos/GO4/Design-Pattern-GO4/Behavioral/Strategy_Design_Pattern)
+2026-07-10 11:45:07.763  INFO 3532647 --- [           main] c.design.patterns.StrategyDesignPattern  : No active profile set, falling back to 1 default profile: &quot;default&quot;
+2026-07-10 11:45:09.396  INFO 3532647 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8080 (http)
+2026-07-10 11:45:09.424  INFO 3532647 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-07-10 11:45:09.425  INFO 3532647 --- [           main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.70]
+2026-07-10 11:45:09.588  INFO 3532647 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-07-10 11:45:09.589  INFO 3532647 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1732 ms
+2026-07-10 11:45:10.019  INFO 3532647 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8080 (http) with context path ''
+2026-07-10 11:45:10.033  INFO 3532647 --- [           main] c.design.patterns.StrategyDesignPattern  : Started StrategyDesignPattern in 2.854 seconds (JVM running for 3.183)
+5 + 20 = 25
+20 - 5 = 15
+5 * 20 = 100
+20 / 5 = 4
 </code></pre>
-<p>The key line produced by the pattern demonstration is:</p>
-<pre><code>25
+<p>The four key lines produced by the pattern demonstration are:</p>
+<pre><code>5 + 20 = 25
+20 - 5 = 15
+5 * 20 = 100
+20 / 5 = 4
 </code></pre>
-<p>This is the result of <code>AdditionOperationStrategy.doOperation(5, 20)</code> → <code>5 + 20</code> → <code>25</code>, printed by <code>System.out.println(calculate)</code>.</p>
+<p>These are, respectively, the results of <code>AdditionOperationStrategy.doOperation(5, 20)</code>, <code>SubtractionOperationStrategy.doOperation(20, 5)</code>, <code>MultiplicationOperationStrategy.doOperation(5, 20)</code>, and <code>DivisionOperationStrategy.doOperation(20, 5)</code>, each printed immediately after <code>calculator.setOperationStrategy(...)</code> re-armed the same <code>Calculator</code> instance with a new algorithm. After the last line prints, the process keeps running (embedded Tomcat holds non-daemon threads); stop it with Ctrl-C or a timeout.</p>
 <hr />
-<h2 id="how-to-run">How to run</h2>
+<h2>How to run</h2>
 <p>From the module directory (<code>Behavioral/Strategy_Design_Pattern/</code>):</p>
 <pre><code class="language-bash"># Build the fat JAR
-mvn -o clean package -DskipTests
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean package -DskipTests
 
 # Run via the Spring Boot fat JAR
-java -jar target/Strategy_Design_Pattern-0.0.1-SNAPSHOT.jar
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 java -jar target/Strategy_Design_Pattern-0.0.1-SNAPSHOT.jar
 </code></pre>
 <p>From the repository root (builds the module and its parent POM):</p>
-<pre><code class="language-bash">mvn -o clean package -pl Behavioral/Strategy_Design_Pattern -am -DskipTests
-java -jar Behavioral/Strategy_Design_Pattern/target/Strategy_Design_Pattern-0.0.1-SNAPSHOT.jar
+<pre><code class="language-bash">JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean package -pl Behavioral/Strategy_Design_Pattern -am -DskipTests
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 java -jar Behavioral/Strategy_Design_Pattern/target/Strategy_Design_Pattern-0.0.1-SNAPSHOT.jar
 </code></pre>
+<p>Alternatively, compile only and run directly off the classes directory with the dependency classpath (no fat jar needed):</p>
+<pre><code class="language-bash">JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean compile
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 java -cp &quot;target/classes:$(mvn -o dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q)&quot; \
+  com.design.patterns.StrategyDesignPattern
+</code></pre>
+<p>The <code>-o</code> (offline) flag works once the parent reactor and dependencies are already in the local Maven cache; drop it on a first build. <code>JAVA_HOME</code> must point at a JDK 11 installation for this reactor.</p>
 <p>Main class fully qualified name (for reference):</p>
-<pre><code>com.design.patterns.DesignPatternsApplication
+<pre><code>com.design.patterns.StrategyDesignPattern
 </code></pre>
 <hr />
-<h2 id="other-real-world-problems-this-pattern-can-solve">Other real-world problems this pattern can solve</h2>
+<h2>Other real-world problems this pattern can solve</h2>
 <table>
 <thead>
 <tr>
@@ -664,6 +721,4 @@ java -jar Behavioral/Strategy_Design_Pattern/target/Strategy_Design_Pattern-0.0.
 </tr>
 </tbody>
 </table>
-<p>In every case the context class remains unchanged; only the strategy passed in at construction (or injected by a DI container such as Spring) determines the runtime behaviour.</p>
-</body>
-</html>
+<p>In every case the context class remains unchanged; only the strategy passed in at construction (or injected by a DI container such as Spring) determines the runtime behaviour.</p></body></html>

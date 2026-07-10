@@ -1,39 +1,39 @@
 package com.design.patterns.command;
 
-import com.design.patterns.command.controller.Command;
-import com.design.patterns.command.controller.concrets.AdjustVolumeCommand;
-import com.design.patterns.command.controller.concrets.ChangeChannelCommand;
-import com.design.patterns.command.controller.concrets.TurnOffCommand;
-import com.design.patterns.command.controller.concrets.TurnOnCommand;
-import com.design.patterns.command.invoker.RemoteControl;
-import com.design.patterns.command.receiver.concrets.Stereo;
-import com.design.patterns.command.receiver.concrets.TV;
+import com.design.patterns.command.controller.IActuatorCommand;
+import com.design.patterns.command.controller.concretes.DisengageActuatorCommand;
+import com.design.patterns.command.controller.concretes.EngageActuatorCommand;
+import com.design.patterns.command.controller.concretes.GripPayloadCommand;
+import com.design.patterns.command.controller.concretes.MoveJointCommand;
+import com.design.patterns.command.invoker.TaskQueue;
+import com.design.patterns.command.receiver.concretes.GripperActuator;
+import com.design.patterns.command.receiver.concretes.JointActuator;
 
 public class CommandDesignPattern {
 
 	public static void main(String[] args) {
 		System.out.println("Command Design Pattern");
 
-		TV tv = new TV();
-		Stereo stereo = new Stereo();
+		JointActuator joint = new JointActuator();
+		GripperActuator gripper = new GripperActuator();
 
-		Command turnOnTV = new TurnOnCommand(tv);
-		Command turnOffTV = new TurnOffCommand(tv);
-		Command adjustVolume = new AdjustVolumeCommand(stereo);
-		Command changeChannel = new ChangeChannelCommand(tv);
+		IActuatorCommand engageJoint = new EngageActuatorCommand(joint);
+		IActuatorCommand gripPayload = new GripPayloadCommand(gripper);
+		IActuatorCommand moveJoint = new MoveJointCommand(joint);
+		IActuatorCommand disengageJoint = new DisengageActuatorCommand(joint);
 
-		RemoteControl remote = new RemoteControl();
+		TaskQueue taskQueue = new TaskQueue();
 
-		remote.setCommand(turnOnTV);
-		remote.pressButton();
+		taskQueue.assignTask(engageJoint);
+		taskQueue.dispatchTask();
 
-		remote.setCommand(adjustVolume);
-		remote.pressButton();
+		taskQueue.assignTask(gripPayload);
+		taskQueue.dispatchTask();
 
-		remote.setCommand(changeChannel);
-		remote.pressButton();
+		taskQueue.assignTask(moveJoint);
+		taskQueue.dispatchTask();
 
-		remote.setCommand(turnOffTV);
-		remote.pressButton();
+		taskQueue.assignTask(disengageJoint);
+		taskQueue.dispatchTask();
 	}
 }

@@ -2,26 +2,32 @@
 
 ## Intent
 
-Create new objects by **copying an existing instance** (the *prototype*) instead of constructing one from scratch. The caller says "give me another one like this" and the object clones itself — without the caller needing to know its concrete class or how expensive it is to build.
+Create new objects by **copying an existing instance** (the *prototype*) instead of constructing one from scratch. The caller says "give me another one like this" and the object clones itself — without the caller needing to know its concrete class or how expensive it was to build.
 
-This implementation uses Java's `Cloneable` marker interface and a self-declared `clone()` method on each product.
+This implementation uses Java's `Cloneable` marker interface and a self-declared `cloneUnit()` method on each product.
 
 ## UML class diagram
 
 ```
-      <<interface>> Shape (extends Cloneable)
-      +--------------------+
-      | +clone() : Shape   |
-      +----------^---------+
-                 | implements
-           +-----+------+
-           |   Circle   |
-           +------------+
-           | -radius    |
-           | -color     |
-           | +clone() --+--> returns new Circle(radius,color)
-           +------------+
- client -> original.clone() -> independent copy
+      <<interface>> IEnemyUnit (extends Cloneable)
+      +-----------------------+
+      | +cloneUnit() : IEnemyUnit |
+      +-----------^------------+
+                   | implements
+           +-------+----------------+
+           |        Marauder        |
+           +-------------------------+
+           | -armorRating : int      |
+           | -faction     : String   |
+           +-------------------------+
+           | +getArmorRating() : int |
+           | +getFaction()  : String |
+           | +setFaction(String)     |
+           | +cloneUnit() : IEnemyUnit --> returns new Marauder(armorRating, faction)
+           | +toString() : String    |
+           +-------------------------+
+
+ client -> template.cloneUnit() -> independent spawn (equal field values, distinct reference)
 ```
 
 ---
@@ -29,113 +35,197 @@ This implementation uses Java's `Cloneable` marker interface and a self-declared
 ## The players
 
 ```
-prototype/contract/Shape                 the prototype interface (declares clone())
-prototype/contract/concret/Circle         a concrete prototype that copies itself
-prototype/PrototypeDesignPattern          the demo — clones a Circle and prints both
+prototype/contract/IEnemyUnit            the prototype interface (declares cloneUnit())
+prototype/contract/concrete/Marauder     a concrete prototype that copies itself
+prototype/EnemySpawnPoint                the demo — clones a Marauder, mutates the clone, prints both before/after
 ```
 
 ---
 
-## The code, line by line
+## Code walkthrough
 
-### `Shape` — the prototype interface
+### `IEnemyUnit` — the prototype interface
 
 ```java
-public interface Shape extends Cloneable {
-	Shape clone();
+public interface IEnemyUnit extends Cloneable {
+	IEnemyUnit cloneUnit();
 }
 ```
 
 - **`extends Cloneable`** — `Cloneable` is a *marker interface*: it has no methods, it just tags a class as "allowed to be cloned." Its role is explained in *Why `Cloneable`* below.
-- **`Shape clone();`** — declares the copy operation and gives it a **covariant return type** of `Shape`. `Object` already has a `protected Object clone()`; redeclaring it here does two things: it makes the method **public** (so callers can invoke it) and it **narrows the return type** from `Object` to `Shape`, so callers get a `Shape` back without casting.
+- **`IEnemyUnit cloneUnit();`** — declares the copy operation and gives it a **covariant return type** of `IEnemyUnit`. `Object` already has a `protected Object clone()`; this module deliberately names its own copy operation `cloneUnit()` instead of overriding `Object.clone()` directly, but the intent is identical: it's **public** (so callers outside the class hierarchy can invoke it) and it **narrows the return type** from `Object` to `IEnemyUnit`, so callers get an `IEnemyUnit` back without having to cast the result themselves.
 
-### `Circle` — a concrete prototype
+### `Marauder` — a concrete prototype
 
 ```java
-public class Circle implements Shape {
+package com.design.patterns.prototype.contract.concrete;
 
-	int radius;
-	String color;
+import com.design.patterns.prototype.contract.IEnemyUnit;
 
-	public Circle(int radius, String color) {
-		this.radius = radius;
-		this.color  = color;
+public class Marauder implements IEnemyUnit {
+
+	private int armorRating;
+	private String faction;
+
+	public Marauder(int armorRating, String faction) {
+		this.armorRating = armorRating;
+		this.faction = faction;
+	}
+
+	public int getArmorRating() {
+		return armorRating;
+	}
+
+	public String getFaction() {
+		return faction;
+	}
+
+	public void setFaction(String faction) {
+		this.faction = faction;
 	}
 
 	@Override
-	public Shape clone() {
-		return new Circle(radius, color);
+	public IEnemyUnit cloneUnit() {
+		return new Marauder(armorRating, faction);
+	}
+
+	@Override
+	public String toString() {
+		return "Marauder{armorRating=" + armorRating + ", faction=" + faction + "}";
 	}
 }
 ```
 
-- **The fields `radius` and `color`** hold the state that must be reproduced in the copy.
-- **The constructor** is the normal way to build a `Circle` — but the point of Prototype is to *avoid* making the caller use it directly.
-- **`clone()`** is the heart of the pattern. This implementation copies **manually**: it reads its own current `radius` and `color` and passes them into a brand-new `Circle`. The returned object is a **separate instance** with equal field values.
+- **`private int armorRating; private String faction;`** — the state that must be reproduced in the copy. Both fields are `private`; access is only through the getters and `setFaction`, which is standard encapsulation and keeps `cloneUnit()` as the one place inside the class that reads and copies both fields together.
+- **The constructor** is the normal way to build a `Marauder` — but the point of Prototype is to let a caller who *already has* a configured `Marauder` get another one without re-supplying `armorRating` and `faction` (or even knowing them).
+- **`getArmorRating()` / `getFaction()`** — read-only accessors so external code (like the demo's `toString()`-driven `println` calls) can observe state without needing package access.
+- **`setFaction(String faction)`** — the one mutator. It exists so the demo can prove the clone is independent: a spawned unit changing allegiance must never be visible through the template it was spawned from.
+- **`cloneUnit()`** is the heart of the pattern. It copies **manually**: it reads its own current `armorRating` and `faction` and passes them into a brand-new `Marauder` via the constructor. The returned object is a **separate instance** with equal field values at the moment of copying — not the same reference, and not a re-used, half-initialized object.
+- **`toString()`** overrides `Object.toString()` to print the fields (`Marauder{armorRating=45, faction=Crimson Horde}`) instead of the default `Marauder@<hashcode>`. This makes the demo's output legible and lets it show *value* equality between template and spawn directly, while the separate `!=` check (see below) demonstrates *reference* inequality — two different things that `Object.toString()` alone could not cleanly separate.
 
-### `PrototypeDesignPattern` — the demo
+### `EnemySpawnPoint` — the demo
 
 ```java
-Circle originalCircle = new Circle(10, "Black");
-Circle copyCircle = (Circle) originalCircle.clone();
+package com.design.patterns.prototype;
 
-System.out.println(originalCircle);
-System.out.println(copyCircle);
+import com.design.patterns.prototype.contract.concrete.Marauder;
+
+public class EnemySpawnPoint {
+
+	public static void main(String[] args) {
+		System.out.println("Dungeon Spawn Point");
+
+		Marauder templateMarauder = new Marauder(45, "Crimson Horde");
+		Marauder spawnedMarauder = (Marauder) templateMarauder.cloneUnit();
+
+		System.out.println("Template : " + templateMarauder);
+		System.out.println("Spawn    : " + spawnedMarauder);
+		System.out.println("Distinct objects: " + (templateMarauder != spawnedMarauder));
+
+		spawnedMarauder.setFaction("Ashfall Renegades");
+		System.out.println("After the spawn defects:");
+		System.out.println("Template : " + templateMarauder);
+		System.out.println("Spawn    : " + spawnedMarauder);
+	}
+}
 ```
 
-- `originalCircle` is the prototype.
-- `originalCircle.clone()` produces a **new** `Circle(10, "Black")`. The cast `(Circle)` narrows the `Shape` return back to `Circle`.
-- Printing both shows **two different** `Circle@<hashcode>` lines — different hashcodes prove they are two distinct objects in memory, not the same reference. (See the note on `toString()` below.)
+- **`new Marauder(45, "Crimson Horde")`** — builds the encounter template the normal way, once, up front. Everything downstream avoids repeating this construction.
+- **`(Marauder) templateMarauder.cloneUnit()`** — `cloneUnit()` returns `IEnemyUnit` (the covariant interface type), so the cast narrows it back to `Marauder` to access `Marauder`-specific members like `setFaction`. The spawn is a brand-new `Marauder(45, "Crimson Horde")` built inside `Marauder.cloneUnit()` — the demo never calls `new Marauder(...)` a second time itself.
+- **`println("Template : " + templateMarauder)` / `println("Spawn    : " + spawnedMarauder)`** — because `Marauder` overrides `toString()`, both lines print identical-looking field values (`Marauder{armorRating=45, faction=Crimson Horde}`) right after cloning. This shows the copy reproduced the *state* correctly.
+- **`templateMarauder != spawnedMarauder`** — a reference-identity check. Since value equality alone (matching `toString()` output) could theoretically be produced by returning the same shared reference, this line adds the complementary proof: the two variables point at genuinely different objects in memory. It prints `true`.
+- **`spawnedMarauder.setFaction("Ashfall Renegades")`** — mutates only the spawn (the spawned unit "defects" to a new faction). Because `cloneUnit()` built a *new* `Marauder` with its own `faction` field (not a shared reference to the template's field slot), reassigning the spawn's `faction` cannot touch the template's `faction`.
+- **Final two `println` calls** — re-print both objects. `templateMarauder` still shows `Crimson Horde`; `spawnedMarauder` now shows `Ashfall Renegades`. This is the second, complementary proof of independence: not just "different objects" (the `!=` check) but "changing one truly does not affect the other."
 
 ---
 
-## Why the design decisions
+## Why these design decisions
 
 ### Why clone instead of just calling the constructor?
 
-Prototype pays off when **construction is expensive or complicated** — the object took a database round-trip, a heavy computation, or a long configuration sequence to reach its current state. Copying an already-built instance skips all of that. It also lets code create new objects **without knowing their concrete class**: given any `Shape`, you can call `clone()` and get another one of the same kind, even if you don't know whether it's a `Circle`, `Square`, etc. The prototype instance effectively *is* the factory.
+Prototype pays off when **construction is expensive or complicated** — the object took a database round-trip, a heavy computation, or a long configuration sequence to reach its current state. Copying an already-built instance skips all of that. It also lets code create new objects **without knowing their concrete class**: given any `IEnemyUnit`, you can call `cloneUnit()` and get another one of the same kind, even if you don't know whether it's a `Marauder`, `Skirmisher`, etc. The prototype instance effectively *is* the factory. This module's `Marauder` is cheap to build, so the win here is purely illustrative — the demo exists to show the mechanics, not to prove a performance case. (In a real spawn point, a template might carry a fully rolled loot table, AI behavior tree, or stat-scaling history that's genuinely expensive to reconstruct per-spawn — cloning the already-configured template is what makes that cheap.)
 
 ### Why `Cloneable`?
 
-`Cloneable` is Java's opt-in switch for cloning. If a class calls `Object.clone()` **without** implementing `Cloneable`, the JVM throws `CloneNotSupportedException`. So the interface is a safety gate: it signals "this type consents to being cloned." This module declares `Shape extends Cloneable` to express that intent for the whole family.
+`Cloneable` is Java's opt-in switch for cloning. If a class calls `Object.clone()` **without** implementing `Cloneable`, the JVM throws `CloneNotSupportedException`. So the interface is a safety gate: it signals "this type consents to being cloned." This module declares `IEnemyUnit extends Cloneable` to express that intent for the whole family.
 
-> Subtlety: this implementation does **not** actually call `super.clone()` — it copies by hand with `new Circle(...)`. Because of that, it would technically work even without `Cloneable`. Keeping `extends Cloneable` still communicates intent and keeps the door open for implementations that *do* use `Object.clone()`.
+> Subtlety: this implementation does **not** actually call `super.clone()` — it copies by hand with `new Marauder(armorRating, faction)`. Because of that, it would technically work even without `Cloneable`. Keeping `extends Cloneable` still communicates intent and keeps the door open for implementations that *do* use `Object.clone()`.
 
-### Why declare `clone()` public with a `Shape` return type?
+### Why declare `cloneUnit()` public with an `IEnemyUnit` return type?
 
-- `Object.clone()` is `protected`, so callers in other packages couldn't invoke it. Redeclaring it in the interface makes it **public**.
-- Returning `Shape` (not `Object`) is a **covariant return** that spares callers a cast in the common case and keeps the API type-safe.
+- `Object.clone()` is `protected`, so callers in other packages couldn't invoke it. Declaring a fresh copy method on the interface makes it **public**.
+- Returning `IEnemyUnit` (not `Object`) is a **covariant return** that spares callers a cast in the common case and keeps the API type-safe.
 
 ### Manual copy vs. `super.clone()` — and shallow vs. deep
 
-There are two ways to implement `clone()`:
+There are two ways to implement a clone operation:
 
-1. **`super.clone()`** — asks `Object` to make a bitwise field-by-field copy. This is a **shallow** copy: primitive fields are duplicated, but object-reference fields are *shared* (both the original and the copy point at the same nested object). Fine here because `String` is immutable, but dangerous if a field is a mutable object (a `List`, an array) — mutating it through one copy would affect the other.
-2. **Manual copy (what this code does)** — `new Circle(radius, color)`. You control exactly what gets copied. For a class with mutable nested objects you would deep-copy them here (e.g. `new ArrayList<>(other.items)`), producing a **deep** copy with no shared mutable state.
+1. **`super.clone()`** — asks `Object` to make a bitwise field-by-field copy. This is a **shallow** copy: primitive fields are duplicated, but object-reference fields are *shared* (both the original and the copy point at the same nested object). Fine for immutable reference fields, but dangerous if a field is a mutable object (a `List`, an array) — mutating it through one copy would affect the other.
+2. **Manual copy (what this code does)** — `new Marauder(armorRating, faction)`. You control exactly what gets copied. For a class with mutable nested objects (say, an equipped-item list) you would deep-copy them here (e.g. `new ArrayList<>(other.equippedItems)`), producing a **deep** copy with no shared mutable state.
 
-This module's fields are an `int` and an immutable `String`, so a shallow copy and this manual copy are equivalent — but writing it manually makes the copying explicit and side-steps the well-known awkwardness of `Object.clone()` (checked exception, `Cloneable` gotchas, no constructor invocation).
+`Marauder`'s fields are an `int` (copied by value, trivially independent) and a `String` (immutable — even though both objects could safely share the same `String` reference, `setFaction` never mutates the `String` itself, it only *reassigns* the spawn's `faction` field to point at a different `String`). There are no mutable collection or array fields on this class, so shallow vs. deep copy is not actually a live concern here — writing `cloneUnit()` manually simply makes the copy explicit and side-steps the well-known awkwardness of `Object.clone()` (checked exception, `Cloneable` gotchas, no constructor invocation).
 
-### Why does printing show two different hashcodes?
+### Why both a `!=` check and a defect-then-reprint step?
 
-`Circle` does **not** override `toString()`, so `System.out.println` falls back to `Object.toString()`, which prints `ClassName@hexHashCode`. The two lines differ because the original and the clone are genuinely separate objects — which is the visible proof that `clone()` produced a copy, not a shared reference. (If you wanted to confirm the *values* match rather than the identities differ, you'd override `toString()` to print `radius`/`color` — but that would hide the "two distinct objects" demonstration.)
+Either proof alone is incomplete. `templateMarauder != spawnedMarauder` proves the spawn is a *distinct object*, but a buggy `cloneUnit()` that shared the same `faction` reference across two otherwise-separate `Marauder` instances would still pass that check. Mutating the spawn via `setFaction("Ashfall Renegades")` and confirming the template is untouched proves the *state itself* is independent, not just the outer object reference. Together they demonstrate what Prototype promises: a full, self-contained copy.
 
 ---
 
-## Execution flow (as run from `main`)
+## Execution flow trace (as run from `main`)
 
 ```
-PrototypeDesignPattern.main
+EnemySpawnPoint.main
         │
-        ├── new Circle(10, "Black")             build the prototype the expensive/normal way
-        │        └── originalCircle
+        ├── println("Dungeon Spawn Point")                    header line
         │
-        ├── originalCircle.clone()              the object copies ITSELF
-        │        └── new Circle(10, "Black")    a brand-new, independent instance
-        │        └── copyCircle
+        ├── new Marauder(45, "Crimson Horde")                 build the encounter template
+        │        └── templateMarauder
         │
-        ├── println(originalCircle)  → Circle@1a2b3c   (identity #1)
-        └── println(copyCircle)      → Circle@4d5e6f   (identity #2 — different object)
+        ├── templateMarauder.cloneUnit()                      the object copies ITSELF
+        │        └── new Marauder(45, "Crimson Horde")          a brand-new, independent instance
+        │        └── (Marauder) cast → spawnedMarauder
+        │
+        ├── println("Template : " + templateMarauder)  → Marauder{armorRating=45, faction=Crimson Horde}
+        ├── println("Spawn    : " + spawnedMarauder)    → Marauder{armorRating=45, faction=Crimson Horde}
+        ├── println("Distinct objects: " + (templateMarauder != spawnedMarauder))  → true
+        │
+        ├── spawnedMarauder.setFaction("Ashfall Renegades")   mutate ONLY the spawn's faction field
+        │
+        ├── println("After the spawn defects:")
+        ├── println("Template : " + templateMarauder)  → Marauder{armorRating=45, faction=Crimson Horde}   (unchanged)
+        └── println("Spawn    : " + spawnedMarauder)    → Marauder{armorRating=45, faction=Ashfall Renegades}  (only the spawn changed)
 ```
+
+---
+
+## Expected output
+
+Captured from an actual run (`java -cp target/classes com.design.patterns.prototype.EnemySpawnPoint`):
+
+```
+Dungeon Spawn Point
+Template : Marauder{armorRating=45, faction=Crimson Horde}
+Spawn    : Marauder{armorRating=45, faction=Crimson Horde}
+Distinct objects: true
+After the spawn defects:
+Template : Marauder{armorRating=45, faction=Crimson Horde}
+Spawn    : Marauder{armorRating=45, faction=Ashfall Renegades}
+```
+
+The process terminates immediately after printing — there is no Spring dependency and no server to keep the JVM alive.
+
+---
+
+## How to run
+
+```bash
+# From the module root directory
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 mvn -o clean compile
+
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 java -cp target/classes com.design.patterns.prototype.EnemySpawnPoint
+```
+
+The `-o` (offline) flag works once the parent reactor and dependencies are already in your local Maven cache; drop it on a first build. No additional classpath entries are needed — this module has no runtime dependencies beyond the JDK.
 
 ---
 
